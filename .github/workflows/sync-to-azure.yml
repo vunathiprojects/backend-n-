@@ -16,7 +16,7 @@ jobs:
         env:
           AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
+          git config --global user.name "monikamorla"
+          git config --global user.email "monikamorla@Datastaggmail.onmicrosoft.com"
           git remote add azure "$AZURE_REPO_URL"
           git push azure master --force
