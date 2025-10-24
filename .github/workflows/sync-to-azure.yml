@@ -11,24 +11,39 @@ jobs:
     steps:
       - name: Checkout code from GitHub
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history
 
-      - name: Push code to Azure Repos
+      - name: Configure Git and Push to Azure
         env:
           AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
           AZURE_PAT: ${{ secrets.AZURE_PAT }}
         run: |
+          # Configure git
           git config --global user.name "monika morla"
           git config --global user.email "monikamorla@Datastaggmail.onmicrosoft.com"
 
-          # Clean the URL
-          CLEAN_URL=$(echo "$AZURE_REPO_URL" | tr -d '\n' | tr -d '\r' | xargs)
-
-          # Add remote without credentials first
-          git remote add azure "$CLEAN_URL"
-
-          # Update remote to include PAT for non-interactive authentication
-          git remote set-url azure https://:$AZURE_PAT@$(echo "$CLEAN_URL" | sed -E 's#https://##')
-
-          # Push code
-          git push azure master --force
-
+          # Clean and validate the Azure Repos URL
+          CLEAN_URL=$(echo "$AZURE_REPO_URL" | sed 's/[\r\n]//g' | xargs)
+          
+          # Extract organization and project from URL
+          # Expected format: https://dev.azure.com/{organization}/{project}/_git/{repository}
+          if [[ $CLEAN_URL =~ https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+) ]]; then
+            ORG="${BASH_REMATCH[1]}"
+            PROJECT="${BASH_REMATCH[2]}"
+            REPO="${BASH_REMATCH[3]}"
+            
+            # Construct authenticated URL
+            AUTH_URL="https://$AZURE_PAT@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
+            
+            echo "Using authenticated URL: https://***@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
+            
+            # Add remote and push
+            git remote add azure $AUTH_URL
+            git push azure master:master --force
+          else
+            echo "Error: Invalid Azure Repos URL format"
+            echo "Expected: https://dev.azure.com/{organization}/{project}/_git/{repository}"
+            echo "Got: $CLEAN_URL"
+            exit 1
+          fi
