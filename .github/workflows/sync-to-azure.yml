@@ -1,0 +1,22 @@
+name: Sync to Azure Repos
+
+on:
+  push:
+    branches:
+      - master  # your GitHub branch
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code from GitHub
+        uses: actions/checkout@v3
+
+      - name: Push code to Azure Repos
+        env:
+          AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git remote add azure "$AZURE_REPO_URL"
+          git push azure master --force
