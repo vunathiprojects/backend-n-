@@ -3,7 +3,7 @@ name: Sync to Azure Repos
 on:
   push:
     branches:
-      - main
+      - main  # Trigger when code is pushed to main in GitHub
 
 jobs:
   sync:
@@ -31,7 +31,8 @@ jobs:
           echo "Setting up Azure remote..."
           git remote add azure "$AZURE_REPO_URL"
           
-          echo "Pushing to Azure Repos..."
-          git push azure master:master --force
+          echo "Pushing to Azure Repos main branch..."
+          # Push from local main to Azure's main branch
+          git push azure master:main --force
           
           echo "✅ Successfully synchronized with Azure Repos!"
