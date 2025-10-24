@@ -23,35 +23,30 @@ jobs:
           git config --global user.name "monika morla"
           git config --global user.email "monikamoria@Datastaggmail.onmicrosoft.com"
 
-          # Remove any incorrect username prefix and clean the URL
-          CLEAN_URL=$(echo "$AZURE_REPO_URL" | sed 's|https://[^@]*@||' | sed 's/[\r\n]//g' | xargs)
+          # Debug: Show original URL (masked)
+          echo "Original URL: ${AZURE_REPO_URL:0:20}..."
           
-          echo "Cleaned URL: $CLEAN_URL"
+          # Force clean URL - hardcode the correct format
+          ORG="novya"
+          PROJECT="Novya"
+          REPO="backend-n"
           
-          # Validate URL format
-          if [[ $CLEAN_URL =~ https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+) ]]; then
-            ORG="${BASH_REMATCH[1]}"
-            PROJECT="${BASH_REMATCH[2]}"
-            REPO="${BASH_REMATCH[3]}"
-            
-            echo "Organization: $ORG"
-            echo "Project: $PROJECT"
-            echo "Repository: $REPO"
-            
-            # Construct authenticated URL
-            AUTH_URL="https://$AZURE_PAT@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
-            
-            echo "Using authenticated URL (PAT hidden for security)"
-            
-            # Add remote and push
-            git remote add azure $AUTH_URL
-            git push azure master:master --force
-            
-            echo "Successfully pushed to Azure Repos!"
-          else
-            echo "Error: Invalid Azure Repos URL format"
-            echo "Expected: https://dev.azure.com/{organization}/{project}/_git/{repository}"
-            echo "Got: $CLEAN_URL"
-            echo "Please check your AZURE_REPO_URL secret"
-            exit 1
-          fi
+          echo "Using hardcoded values:"
+          echo "Organization: $ORG"
+          echo "Project: $PROJECT"
+          echo "Repository: $REPO"
+          
+          # Construct URLs
+          CLEAN_URL="https://dev.azure.com/$ORG/$PROJECT/_git/$REPO"
+          AUTH_URL="https://$AZURE_PAT@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
+          
+          echo "Clean URL: $CLEAN_URL"
+          echo "Auth URL: https://***@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
+          
+          # Test network connectivity
+          echo "Testing connectivity to Azure DevOps..."
+          curl -I https://dev.azure.com --connect-timeout 10
+          
+          # Add remote and push
+          git remote add azure "$AUTH_URL"
+          git push azure master:master --force
