@@ -15,11 +15,20 @@ jobs:
       - name: Push code to Azure Repos
         env:
           AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
+          AZURE_PAT: ${{ secrets.AZURE_PAT }}
         run: |
           git config --global user.name "monikamorla"
           git config --global user.email "monikamorla@Datastaggmail.onmicrosoft.com"
-          # Remove any hidden newlines or spaces from the URL
+
+          # Clean the URL
           CLEAN_URL=$(echo "$AZURE_REPO_URL" | tr -d '\n' | tr -d '\r' | xargs)
+
+          # Add remote without credentials first
           git remote add azure "$CLEAN_URL"
+
+          # Update remote to include PAT for non-interactive authentication
+          git remote set-url azure https://:$AZURE_PAT@$(echo "$CLEAN_URL" | sed -E 's#https://##')
+
+          # Push code
           git push azure master --force
 
