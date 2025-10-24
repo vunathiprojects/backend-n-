@@ -3,50 +3,39 @@ name: Sync to Azure Repos
 on:
   push:
     branches:
-      - master
+      - master  # GitHub branch to trigger sync
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code from GitHub
+      # Step 1: Checkout code from GitHub
+      - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
-      - name: Configure Git and Push to Azure
+      # Step 2: Push to Azure Repos using PAT
+      - name: Push code to Azure Repos
         env:
-          AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
-          AZURE_PAT: ${{ secrets.AZURE_PAT }}
+          AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}  # Exact HTTPS clone URL from Azure DevOps
+          AZURE_PAT: ${{ secrets.AZURE_PAT }}            # Personal Access Token with Code: Read & Write
         run: |
-          # Configure git
-          git config --global user.name "monika morla"
-          git config --global user.email "monikamoria@Datastaggmail.onmicrosoft.com"
+          # Configure Git identity
+          git config --global user.name "monikamorla"
+          git config --global user.email "monikamorla@Datastaggmail.onmicrosoft.com"
 
-          # Debug: Show original URL (masked)
-          echo "Original URL: ${AZURE_REPO_URL:0:20}..."
-          
-          # Force clean URL - hardcode the correct format
-          ORG="novya"
-          PROJECT="Novya"
-          REPO="backend-n"
-          
-          echo "Using hardcoded values:"
-          echo "Organization: $ORG"
-          echo "Project: $PROJECT"
-          echo "Repository: $REPO"
-          
-          # Construct URLs
-          CLEAN_URL="https://dev.azure.com/$ORG/$PROJECT/_git/$REPO"
-          AUTH_URL="https://$AZURE_PAT@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
-          
-          echo "Clean URL: $CLEAN_URL"
-          echo "Auth URL: https://***@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
-          
-          # Test network connectivity
-          echo "Testing connectivity to Azure DevOps..."
-          curl -I https://dev.azure.com --connect-timeout 10
-          
-          # Add remote and push
-          git remote add azure "$AUTH_URL"
-          git push azure master:master --force
+          # Remove any hidden newlines or spaces
+          CLEAN_URL=$(echo "$AZURE_REPO_URL" | tr -d '\n' | tr -d '\r' | xargs)
+
+          # Add remote without credentials first
+          git remote add azure "$CLEAN_URL"
+
+          # Update remote to include PAT for non-interactive authentication
+          AUTH_URL="https://:$AZURE_PAT@$(echo "$CLEAN_URL" | sed -E 's#https://##')"
+          git remote set-url azure "$AUTH_URL"
+
+          # Test connectivity
+          git ls-remote azure
+
+          # Push code to Azure DevOps
+          git push azure master --force
