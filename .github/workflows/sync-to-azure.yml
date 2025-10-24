@@ -3,7 +3,7 @@ name: Sync to Azure Repos
 on:
   push:
     branches:
-      - master  # your GitHub branch
+      - master
 
 jobs:
   sync:
@@ -12,38 +12,35 @@ jobs:
       - name: Checkout code from GitHub
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Fetch all history
+          fetch-depth: 0
 
       - name: Configure Git and Push to Azure
         env:
           AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
           AZURE_PAT: ${{ secrets.AZURE_PAT }}
         run: |
-          # Configure git
+          # Configure git with correct email from your Azure DevOps account
           git config --global user.name "monika morla"
-          git config --global user.email "monikamorla@Datastaggmail.onmicrosoft.com"
+          git config --global user.email "monikanoria@Datastaggmail.onmicrosoft.com"
 
-          # Clean and validate the Azure Repos URL
+          # Clean the Azure Repos URL
           CLEAN_URL=$(echo "$AZURE_REPO_URL" | sed 's/[\r\n]//g' | xargs)
           
-          # Extract organization and project from URL
-          # Expected format: https://dev.azure.com/{organization}/{project}/_git/{repository}
+          # Construct authenticated URL
           if [[ $CLEAN_URL =~ https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+) ]]; then
             ORG="${BASH_REMATCH[1]}"
             PROJECT="${BASH_REMATCH[2]}"
             REPO="${BASH_REMATCH[3]}"
             
-            # Construct authenticated URL
             AUTH_URL="https://$AZURE_PAT@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
             
-            echo "Using authenticated URL: https://***@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
+            echo "Pushing to Azure DevOps organization: $ORG"
+            echo "Project: $PROJECT"
+            echo "Repository: $REPO"
             
-            # Add remote and push
             git remote add azure $AUTH_URL
             git push azure master:master --force
           else
             echo "Error: Invalid Azure Repos URL format"
-            echo "Expected: https://dev.azure.com/{organization}/{project}/_git/{repository}"
-            echo "Got: $CLEAN_URL"
             exit 1
           fi
