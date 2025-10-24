@@ -3,31 +3,35 @@ name: Sync to Azure Repos
 on:
   push:
     branches:
-      - master  # Trigger on pushes to master
+      - master
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-
     steps:
-      # Step 1: Checkout code from GitHub
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      # Step 2: Push to Azure Repos using PAT
-      - name: Push code to Azure Repos
+      - name: Push to Azure Repos
         env:
-          AZURE_PAT: ${{ secrets.AZURE_PAT }}  # Personal Access Token
+          AZURE_PAT: ${{ secrets.AZURE_PAT }}
         run: |
-          # Configure Git identity
-          git config --global user.name "monikamorla"
-          git config --global user.email "monikamorla@Datastaggmail.onmicrosoft.com"
+          # Configure Git
+          git config --global user.name "monika morla"
+          git config --global user.email "monikamoria@Datastaggmail.onmicrosoft.com"
 
-          # Add Azure remote with PAT for authentication
-          git remote add azure https://:$AZURE_PAT@dev.azure.com/novya/Novya/_git/backend-n
+          # Remove existing remote if it exists
+          git remote remove azure 2>/dev/null || true
 
-          # Test connectivity
-          git ls-remote azure
-
-          # Push code
-          git push azure master --force
+          # Construct the authenticated URL
+          AZURE_REPO_URL="https://$AZURE_PAT@dev.azure.com/novya/Novya/_git/backend-n"
+          
+          echo "Setting up Azure remote..."
+          git remote add azure "$AZURE_REPO_URL"
+          
+          echo "Pushing to Azure Repos..."
+          git push azure master:master --force
+          
+          echo "✅ Successfully synchronized with Azure Repos!"
