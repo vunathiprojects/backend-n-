@@ -1,0 +1,13 @@
+Django==4.2.7
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+djangorestframework-simplejwt==5.3.0
+Pillow>=9.0.0
+python-decouple==3.8
+psycopg2-binary==2.9.9
+django-filter==23.5
+django-extensions==3.2.3
+celery==5.3.4
+redis==5.0.1
+django-storages==1.14.2
+boto3==1.34.0
