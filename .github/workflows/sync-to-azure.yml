@@ -17,7 +17,7 @@ jobs:
           AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
           AZURE_PAT: ${{ secrets.AZURE_PAT }}
         run: |
-          git config --global user.name "monikamorla"
+          git config --global user.name "monika morla"
           git config --global user.email "monikamorla@Datastaggmail.onmicrosoft.com"
 
           # Clean the URL
