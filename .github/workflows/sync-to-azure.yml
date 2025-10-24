@@ -19,28 +19,39 @@ jobs:
           AZURE_REPO_URL: ${{ secrets.AZURE_REPO_URL }}
           AZURE_PAT: ${{ secrets.AZURE_PAT }}
         run: |
-          # Configure git with correct email from your Azure DevOps account
+          # Configure git
           git config --global user.name "monika morla"
-          git config --global user.email "monikanoria@Datastaggmail.onmicrosoft.com"
+          git config --global user.email "monikamoria@Datastaggmail.onmicrosoft.com"
 
-          # Clean the Azure Repos URL
-          CLEAN_URL=$(echo "$AZURE_REPO_URL" | sed 's/[\r\n]//g' | xargs)
+          # Remove any incorrect username prefix and clean the URL
+          CLEAN_URL=$(echo "$AZURE_REPO_URL" | sed 's|https://[^@]*@||' | sed 's/[\r\n]//g' | xargs)
           
-          # Construct authenticated URL
+          echo "Cleaned URL: $CLEAN_URL"
+          
+          # Validate URL format
           if [[ $CLEAN_URL =~ https://dev.azure.com/([^/]+)/([^/]+)/_git/([^/]+) ]]; then
             ORG="${BASH_REMATCH[1]}"
             PROJECT="${BASH_REMATCH[2]}"
             REPO="${BASH_REMATCH[3]}"
             
-            AUTH_URL="https://$AZURE_PAT@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
-            
-            echo "Pushing to Azure DevOps organization: $ORG"
+            echo "Organization: $ORG"
             echo "Project: $PROJECT"
             echo "Repository: $REPO"
             
+            # Construct authenticated URL
+            AUTH_URL="https://$AZURE_PAT@dev.azure.com/$ORG/$PROJECT/_git/$REPO"
+            
+            echo "Using authenticated URL (PAT hidden for security)"
+            
+            # Add remote and push
             git remote add azure $AUTH_URL
             git push azure master:master --force
+            
+            echo "Successfully pushed to Azure Repos!"
           else
             echo "Error: Invalid Azure Repos URL format"
+            echo "Expected: https://dev.azure.com/{organization}/{project}/_git/{repository}"
+            echo "Got: $CLEAN_URL"
+            echo "Please check your AZURE_REPO_URL secret"
             exit 1
           fi
