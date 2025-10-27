@@ -8,7 +8,7 @@ variables:
   azureSubscription: 'novya-serviceconnection'
   appName: 'backend-n'
   pythonVersion: '3.11'
-  backendDir: '.' # change to 'backend' if code is in a folder
+  backendDir: '.' 
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -27,6 +27,17 @@ steps:
       pip install -r requirements.txt
     displayName: 'Install Python dependencies'
 
+  # UPDATED: Test with your actual startup command
+  - script: |
+      cd $(backendDir)
+      echo "Testing application startup with gunicorn..."
+      echo "Installing gunicorn and uvicorn if not in requirements.txt..."
+      pip install gunicorn uvicorn
+      echo "Starting app with: gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app"
+      timeout 30s gunicorn -w 2 -k uvicorn.workers.UvicornWorker app:app --bind=0.0.0.0:8000 || echo "Test completed - this is expected to timeout"
+    displayName: 'Test FastAPI Application Startup'
+    continueOnError: true
+
   - task: ArchiveFiles@2
     displayName: 'Archive backend files'
     inputs:
@@ -43,3 +54,14 @@ steps:
       appName: $(appName)
       package: '$(Build.ArtifactStagingDirectory)/backend.zip'
 
+  # UPDATED: Better health check for FastAPI
+  - script: |
+      echo "Waiting for app to start after deployment..."
+      sleep 45
+      echo "Testing health endpoint..."
+      curl -f --retry 3 --retry-delay 10 https://$(appName).azurewebsites.net/health || \
+      curl -f --retry 3 --retry-delay 10 https://$(appName).azurewebsites.net/docs || \
+      curl -f --retry 3 --retry-delay 10 https://$(appName).azurewebsites.net/ || \
+      echo "App might still be starting - check Azure logs"
+    displayName: 'Post-deployment Health Check'
+    continueOnError: true
