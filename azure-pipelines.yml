@@ -1,4 +1,4 @@
-# azure-pipelines-fixed.yml
+# azure-pipelines-simple-fixed.yml
 trigger:
   branches:
     include:
@@ -29,13 +29,19 @@ steps:
       python -c "from app import app; print('✅ App imports successfully')"
     displayName: 'Test app import'
 
-  # Create requirements.txt in root for Oryx detection
+  # Create a startup script that includes dependencies
   - script: |
-      echo "Copying requirements.txt to root for Oryx..."
-      cp ai_backend/requirements.txt requirements.txt
-      echo "Requirements.txt content:"
-      cat requirements.txt
-    displayName: 'Setup for Oryx build'
+      echo "Creating startup script..."
+      cat > startup.sh << 'EOF'
+      #!/bin/bash
+      echo "Installing Python dependencies..."
+      pip install --no-cache-dir -r requirements.txt
+      echo "Starting FastAPI application..."
+      cd ai_backend
+      uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2
+      EOF
+      chmod +x startup.sh
+    displayName: 'Create startup script'
 
   - task: ArchiveFiles@2
     displayName: 'Archive files'
@@ -44,6 +50,7 @@ steps:
       includeRootFolder: false
       archiveType: 'zip'
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
+      replaceExistingArchive: true
 
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure'
@@ -52,11 +59,11 @@ steps:
       appName: $(appName)
       package: '$(Build.ArtifactStagingDirectory)/backend.zip'
 
-  # Set startup command that installs dependencies first
+  # Set startup command to use the script
   - task: AzureAppServiceManage@0
     displayName: 'Set Startup Command'
     inputs:
       azureSubscription: $(azureSubscription)
       Action: 'Start Azure App Service'
       WebAppName: $(appName)
-      StartupCommand: 'python -m pip install -r requirements.txt && uvicorn ai_backend.app:app --host 0.0.0.0 --port 8000 --workers 2'
+      StartupCommand: './startup.sh'
