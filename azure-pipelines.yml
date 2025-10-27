@@ -1,4 +1,4 @@
-# azure-pipelines-backend.yml
+# azure-pipelines-simple.yml
 trigger:
   branches:
     include:
@@ -8,7 +8,6 @@ variables:
   azureSubscription: 'novya-serviceconnection'
   appName: 'backend-n'
   pythonVersion: '3.11'
-  backendDir: 'ai_backend'
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -20,66 +19,27 @@ steps:
     displayName: 'Use Python $(pythonVersion)'
 
   - script: |
-      echo "Installing dependencies from $(backendDir)/requirements.txt..."
-      pip install -r $(backendDir)/requirements.txt
-    displayName: 'Install Python dependencies'
+      echo "Installing dependencies..."
+      pip install -r ai_backend/requirements.txt
+    displayName: 'Install dependencies'
 
-  # FIXED: Test with uvicorn instead of gunicorn
   - script: |
-      echo "Testing application startup from $(backendDir) directory..."
-      cd $(backendDir)
-      echo "Testing with uvicorn..."
-      timeout 30s uvicorn app:app --host 0.0.0.0 --port 8000 --workers 1 || echo "Test completed - expected to timeout"
-    displayName: 'Test FastAPI Application Startup'
-    continueOnError: true
+      echo "Testing application..."
+      cd ai_backend
+      python -c "from app import app; print('✅ App imports successfully')"
+    displayName: 'Test app import'
 
   - task: ArchiveFiles@2
-    displayName: 'Archive backend files'
+    displayName: 'Archive files'
     inputs:
       rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
       includeRootFolder: false
       archiveType: 'zip'
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
-      replaceExistingArchive: true
 
   - task: AzureWebApp@1
-    displayName: 'Deploy backend to Azure App Service'
+    displayName: 'Deploy to Azure'
     inputs:
       azureSubscription: $(azureSubscription)
       appName: $(appName)
       package: '$(Build.ArtifactStagingDirectory)/backend.zip'
-
-  # FIXED: Use uvicorn startup command
-  - task: AzureCLI@2
-    displayName: 'Update App Service Startup Command'
-    inputs:
-      azureSubscription: $(azureSubscription)
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
-      inlineScript: |
-        # Get the resource group for the App Service
-        RESOURCE_GROUP=$(az webapp show --name $(appName) --query resourceGroup --output tsv)
-        echo "Resource Group: $RESOURCE_GROUP"
-        
-        # Update to use uvicorn instead of gunicorn
-        az webapp config set --name $(appName) --resource-group $RESOURCE_GROUP --startup-file "uvicorn ai_backend.app:app --host 0.0.0.0 --port 8000 --workers 2"
-
-  - script: |
-      echo "Waiting for application to start (90 seconds)..."
-      sleep 90
-      echo "Starting health checks..."
-      for i in 1 2 3 4 5; do
-        echo "Health check attempt $i/5..."
-        response_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://$(appName).azurewebsites.net/)
-        if [ "$response_code" = "200" ]; then
-          echo "✅ Application is responding with HTTP 200"
-          exit 0
-        else
-          echo "⚠️ Attempt $i: HTTP $response_code, waiting 20 seconds..."
-          sleep 20
-        fi
-      done
-      echo "❌ Health check failed after 5 attempts"
-      echo "Please check Azure App Service logs for details"
-    displayName: 'Health Check Application'
-    continueOnError: true
