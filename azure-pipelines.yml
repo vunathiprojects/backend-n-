@@ -1,0 +1,46 @@
+# azure-pipelines-backend.yml
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  azureSubscription: 'novya-serviceconnection'
+  appName: 'backend-n'
+  pythonVersion: '3.11'
+  backendDir: '.' # change to 'backend' if code is in a folder
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(pythonVersion)'
+    displayName: 'Use Python $(pythonVersion)'
+
+  - script: |
+      cd $(backendDir)
+      echo "Upgrading pip..."
+      python -m pip install --upgrade pip
+      echo "Installing dependencies..."
+      pip install -r requirements.txt
+    displayName: 'Install Python dependencies'
+
+  - task: ArchiveFiles@2
+    displayName: 'Archive backend files'
+    inputs:
+      rootFolderOrFile: '$(System.DefaultWorkingDirectory)/$(backendDir)'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
+      replaceExistingArchive: true
+
+  - task: AzureWebApp@1
+    displayName: 'Deploy backend to Azure App Service'
+    inputs:
+      azureSubscription: $(azureSubscription)
+      appName: $(appName)
+      package: '$(Build.ArtifactStagingDirectory)/backend.zip'
+
+
