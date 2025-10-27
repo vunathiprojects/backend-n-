@@ -8,7 +8,7 @@ variables:
   azureSubscription: 'novya-serviceconnection'
   appName: 'backend-n'
   pythonVersion: '3.11'
-  backendDir: '.' 
+  backendDir: 'ai_backend'  # Correct path to your backend
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -19,42 +19,40 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
+  # FIXED: Install dependencies from ai_backend/requirements.txt
   - script: |
-      cd $(backendDir)
-      echo "Upgrading pip..."
-      python -m pip install --upgrade pip
-      echo "Installing dependencies..."
-      pip install -r requirements.txt
+      echo "Installing dependencies from $(backendDir)/requirements.txt..."
+      pip install -r $(backendDir)/requirements.txt
     displayName: 'Install Python dependencies'
 
-  # UPDATED: Test with your EXACT startup command including PYTHONPATH
+  # FIXED: Test application from correct directory
   - script: |
+      echo "Testing application startup from $(backendDir) directory..."
       cd $(backendDir)
-      echo "Testing application startup with your exact command..."
-      echo "Installing gunicorn and uvicorn if not in requirements.txt..."
-      pip install gunicorn uvicorn
-      echo "Creating simulated packages directory..."
-      mkdir -p __packages__
-      echo "Testing: PYTHONPATH=/home/site/wwwroot/__packages__ gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app"
-      PYTHONPATH=__packages__ timeout 30s gunicorn -w 2 -k uvicorn.workers.UvicornWorker app:app --bind=0.0.0.0:8000 || echo "Test completed - this is expected to timeout"
+      echo "Current directory: $(pwd)"
+      echo "Files in directory:"
+      ls -la
+      echo "Testing: gunicorn -w 2 -k uvicorn.workers.UvicornWorker app:app"
+      timeout 30s gunicorn -w 2 -k uvicorn.workers.UvicornWorker app:app --bind=0.0.0.0:8000 || echo "Test completed - expected to timeout"
     displayName: 'Test FastAPI Application Startup'
     continueOnError: true
 
-  # ADDED: Verify critical files exist
+  # FIXED: Verify the exact file structure
   - script: |
-      cd $(backendDir)
-      echo "Checking if app.py exists..."
-      ls -la app.py || echo "ERROR: app.py not found!"
-      echo "Checking requirements.txt content..."
-      cat requirements.txt || echo "ERROR: requirements.txt not found!"
-      echo "Listing all Python files..."
-      find . -name "*.py" | head -10
-    displayName: 'Verify Application Files'
+      echo "=== Project Structure ==="
+      find . -name "*.py" -o -name "requirements.txt" | sort
+      echo "=== ai_backend folder contents ==="
+      ls -la ai_backend/
+      echo "=== Requirements.txt content ==="
+      cat ai_backend/requirements.txt
+      echo "=== app.py exists? ==="
+      test -f ai_backend/app.py && echo "✅ ai_backend/app.py exists" || echo "❌ ai_backend/app.py missing"
+    displayName: 'Verify Project Structure'
 
   - task: ArchiveFiles@2
     displayName: 'Archive backend files'
     inputs:
-      rootFolderOrFile: '$(System.DefaultWorkingDirectory)/$(backendDir)'
+      rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
       includeRootFolder: false
       archiveType: 'zip'
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
@@ -67,19 +65,33 @@ steps:
       appName: $(appName)
       package: '$(Build.ArtifactStagingDirectory)/backend.zip'
 
-  # UPDATED: Better health check with retries
+  # FIXED: Set the correct startup command for Azure App Service
+  - task: AzureCLI@2
+    displayName: 'Update App Service Startup Command'
+    inputs:
+      azureSubscription: $(azureSubscription)
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        az webapp config set --name $(appName) --resource-group $(resourceGroup) --startup-file "gunicorn -w 4 -k uvicorn.workers.UvicornWorker ai_backend.app:app --chdir ai_backend"
+
+  # Health check with better error handling
   - script: |
-      echo "Waiting for app to start after deployment (this can take 1-2 minutes)..."
-      sleep 60
-      echo "Testing application health..."
-      for i in 1 2 3; do
-        echo "Attempt $i: Testing health endpoint..."
-        curl -f --max-time 30 https://$(appName).azurewebsites.net/health && echo "Health check PASSED!" && exit 0
-        curl -f --max-time 30 https://$(appName).azurewebsites.net/docs && echo "Docs endpoint accessible!" && exit 0
-        curl -f --max-time 30 https://$(appName).azurewebsites.net/ && echo "Root endpoint accessible!" && exit 0
-        echo "Attempt $i failed, waiting 15 seconds..."
-        sleep 15
+      echo "Waiting for application to start (90 seconds)..."
+      sleep 90
+      echo "Starting health checks..."
+      for i in 1 2 3 4 5; do
+        echo "Health check attempt $i/5..."
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://$(appName).azurewebsites.net/)
+        if [ "$response_code" = "200" ]; then
+          echo "✅ Application is responding with HTTP 200"
+          exit 0
+        else
+          echo "⚠️ Attempt $i: HTTP $response_code, waiting 20 seconds..."
+          sleep 20
+        fi
       done
-      echo "Health check FAILED - check Azure App Service logs for details"
-    displayName: 'Post-deployment Health Check'
+      echo "❌ Health check failed after 5 attempts"
+      echo "Please check Azure App Service logs for details"
+    displayName: 'Health Check Application'
     continueOnError: true
