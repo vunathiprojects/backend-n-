@@ -27,16 +27,29 @@ steps:
       pip install -r requirements.txt
     displayName: 'Install Python dependencies'
 
-  # UPDATED: Test with your actual startup command
+  # UPDATED: Test with your EXACT startup command including PYTHONPATH
   - script: |
       cd $(backendDir)
-      echo "Testing application startup with gunicorn..."
+      echo "Testing application startup with your exact command..."
       echo "Installing gunicorn and uvicorn if not in requirements.txt..."
       pip install gunicorn uvicorn
-      echo "Starting app with: gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app"
-      timeout 30s gunicorn -w 2 -k uvicorn.workers.UvicornWorker app:app --bind=0.0.0.0:8000 || echo "Test completed - this is expected to timeout"
+      echo "Creating simulated packages directory..."
+      mkdir -p __packages__
+      echo "Testing: PYTHONPATH=/home/site/wwwroot/__packages__ gunicorn -w 4 -k uvicorn.workers.UvicornWorker app:app"
+      PYTHONPATH=__packages__ timeout 30s gunicorn -w 2 -k uvicorn.workers.UvicornWorker app:app --bind=0.0.0.0:8000 || echo "Test completed - this is expected to timeout"
     displayName: 'Test FastAPI Application Startup'
     continueOnError: true
+
+  # ADDED: Verify critical files exist
+  - script: |
+      cd $(backendDir)
+      echo "Checking if app.py exists..."
+      ls -la app.py || echo "ERROR: app.py not found!"
+      echo "Checking requirements.txt content..."
+      cat requirements.txt || echo "ERROR: requirements.txt not found!"
+      echo "Listing all Python files..."
+      find . -name "*.py" | head -10
+    displayName: 'Verify Application Files'
 
   - task: ArchiveFiles@2
     displayName: 'Archive backend files'
@@ -54,14 +67,19 @@ steps:
       appName: $(appName)
       package: '$(Build.ArtifactStagingDirectory)/backend.zip'
 
-  # UPDATED: Better health check for FastAPI
+  # UPDATED: Better health check with retries
   - script: |
-      echo "Waiting for app to start after deployment..."
-      sleep 45
-      echo "Testing health endpoint..."
-      curl -f --retry 3 --retry-delay 10 https://$(appName).azurewebsites.net/health || \
-      curl -f --retry 3 --retry-delay 10 https://$(appName).azurewebsites.net/docs || \
-      curl -f --retry 3 --retry-delay 10 https://$(appName).azurewebsites.net/ || \
-      echo "App might still be starting - check Azure logs"
+      echo "Waiting for app to start after deployment (this can take 1-2 minutes)..."
+      sleep 60
+      echo "Testing application health..."
+      for i in 1 2 3; do
+        echo "Attempt $i: Testing health endpoint..."
+        curl -f --max-time 30 https://$(appName).azurewebsites.net/health && echo "Health check PASSED!" && exit 0
+        curl -f --max-time 30 https://$(appName).azurewebsites.net/docs && echo "Docs endpoint accessible!" && exit 0
+        curl -f --max-time 30 https://$(appName).azurewebsites.net/ && echo "Root endpoint accessible!" && exit 0
+        echo "Attempt $i failed, waiting 15 seconds..."
+        sleep 15
+      done
+      echo "Health check FAILED - check Azure App Service logs for details"
     displayName: 'Post-deployment Health Check'
     continueOnError: true
