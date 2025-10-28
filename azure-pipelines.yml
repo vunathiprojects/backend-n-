@@ -1,4 +1,4 @@
-# azure-pipelines-single-command.yml
+# azure-pipelines-final.yml
 trigger:
   branches:
     include:
@@ -18,9 +18,21 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
+  # Copy correct requirements.txt to root
+  - script: |
+      echo "Setting up requirements.txt..."
+      echo "fastapi==0.104.1" > requirements.txt
+      echo "uvicorn[standard]==0.27.0" >> requirements.txt
+      echo "python-dotenv==1.0.0" >> requirements.txt
+      echo "openai==1.3.0" >> requirements.txt
+      echo "pydantic==2.5.0" >> requirements.txt
+      echo "Requirements.txt created:"
+      cat requirements.txt
+    displayName: 'Create requirements.txt'
+
   - script: |
       echo "Installing dependencies..."
-      pip install -r ai_backend/requirements.txt
+      pip install -r requirements.txt
     displayName: 'Install dependencies'
 
   - script: |
@@ -45,11 +57,11 @@ steps:
       appName: $(appName)
       package: '$(Build.ArtifactStagingDirectory)/backend.zip'
 
-  # SINGLE COMMAND - No script file needed
+  # Correct startup command
   - task: AzureAppServiceManage@0
     displayName: 'Set Startup Command'
     inputs:
       azureSubscription: $(azureSubscription)
       Action: 'Start Azure App Service'
       WebAppName: $(appName)
-      StartupCommand: 'cd /home/site/wwwroot && pip install --no-cache-dir -r ai_backend/requirements.txt && cd ai_backend && uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2'
+      StartupCommand: 'cd /home/site/wwwroot && pip install --no-cache-dir -r requirements.txt && cd ai_backend && python -m uvicorn app:app --host 0.0.0.0 --port 8000'
