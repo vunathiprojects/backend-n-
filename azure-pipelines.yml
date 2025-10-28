@@ -12,25 +12,34 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
+  # Step 1: Set up Python
   - task: UsePythonVersion@0
     inputs:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
-  # Install from your actual requirements.txt
+  # Step 2: Install Django backend dependencies (root)
   - script: |
-      echo "Installing FastAPI dependencies..."
+      echo "Installing Django backend dependencies..."
+      pip install -r requirements.txt
+    displayName: 'Install Django requirements'
+
+  # Step 3: Install FastAPI backend dependencies (ai_backend)
+  - script: |
+      echo "Installing FastAPI backend dependencies..."
       cd ai_backend
       pip install -r requirements.txt
-    displayName: 'Install FastAPI dependencies'
+    displayName: 'Install FastAPI requirements'
 
+  # Step 4: Verify uvicorn installation
   - script: |
-      echo "Testing if uvicorn is available..."
+      echo "Verifying uvicorn installation..."
       python -c "import uvicorn; print('✅ uvicorn installed successfully')"
-    displayName: 'Verify uvicorn installation'
+    displayName: 'Verify FastAPI installation'
 
+  # Step 5: Archive everything
   - task: ArchiveFiles@2
-    displayName: 'Archive files'
+    displayName: 'Archive files for deployment'
     inputs:
       rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
       includeRootFolder: false
@@ -38,8 +47,9 @@ steps:
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
       replaceExistingArchive: true
 
+  # Step 6: Deploy to Azure Web App
   - task: AzureWebApp@1
-    displayName: 'Deploy to Azure'
+    displayName: 'Deploy to Azure Web App'
     inputs:
       azureSubscription: $(azureSubscription)
       appName: $(appName)
