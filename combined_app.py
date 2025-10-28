@@ -4,15 +4,18 @@ from django.core.wsgi import get_wsgi_application
 from starlette.middleware.wsgi import WSGIMiddleware
 import os
 
-# Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend-n.settings')
+# Setup Django environment
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_n.settings')
+
+# Initialize Django app
 django_app = get_wsgi_application()
 
-# Create main FastAPI app
-main_app = FastAPI()
+# Create FastAPI main app
+main_app = FastAPI(title="Combined FastAPI + Django App")
 
 # Mount FastAPI AI backend
 main_app.mount("/ai", ai_app)
 
-# Mount Django app under /django
+# Mount Django under /django
 main_app.mount("/django", WSGIMiddleware(django_app))
+
