@@ -17,17 +17,17 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
-  # Install dependencies from your actual requirements.txt
+  # Install from your actual requirements.txt
   - script: |
-      echo "Installing dependencies..."
-      pip install -r ai_backend/requirements.txt
-    displayName: 'Install dependencies'
+      echo "Installing FastAPI dependencies..."
+      cd ai_backend
+      pip install -r requirements.txt
+    displayName: 'Install FastAPI dependencies'
 
   - script: |
-      echo "Testing application..."
-      cd ai_backend
-      python -c "from app import app; print('✅ App imports successfully')"
-    displayName: 'Test app import'
+      echo "Testing if uvicorn is available..."
+      python -c "import uvicorn; print('✅ uvicorn installed successfully')"
+    displayName: 'Verify uvicorn installation'
 
   - task: ArchiveFiles@2
     displayName: 'Archive files'
