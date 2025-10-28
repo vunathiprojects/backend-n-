@@ -1,4 +1,4 @@
-# azure-pipelines-simple-fixed.yml
+# azure-pipelines-single-command.yml
 trigger:
   branches:
     include:
@@ -29,20 +29,6 @@ steps:
       python -c "from app import app; print('✅ App imports successfully')"
     displayName: 'Test app import'
 
-  # Create a startup script that includes dependencies
-  - script: |
-      echo "Creating startup script..."
-      cat > startup.sh << 'EOF'
-      #!/bin/bash
-      echo "Installing Python dependencies..."
-      pip install --no-cache-dir -r requirements.txt
-      echo "Starting FastAPI application..."
-      cd ai_backend
-      uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2
-      EOF
-      chmod +x startup.sh
-    displayName: 'Create startup script'
-
   - task: ArchiveFiles@2
     displayName: 'Archive files'
     inputs:
@@ -59,11 +45,11 @@ steps:
       appName: $(appName)
       package: '$(Build.ArtifactStagingDirectory)/backend.zip'
 
-  # Set startup command to use the script
+  # SINGLE COMMAND - No script file needed
   - task: AzureAppServiceManage@0
     displayName: 'Set Startup Command'
     inputs:
       azureSubscription: $(azureSubscription)
       Action: 'Start Azure App Service'
       WebAppName: $(appName)
-      StartupCommand: './startup.sh'
+      StartupCommand: 'cd /home/site/wwwroot && pip install --no-cache-dir -r ai_backend/requirements.txt && cd ai_backend && uvicorn app:app --host 0.0.0.0 --port 8000 --workers 2'
