@@ -22,6 +22,8 @@ class QuizAdmin(admin.ModelAdmin):
     #list_filter = ('subject', 'grade', 'difficulty', 'is_published', 'is_premium', 'created_at')
     search_fields = ('title', 'description')
     #raw_id_fields = ('created_by',)
+    list_display = ('email', 'is_active', 'is_staff')
+
 
 
 @admin.register(Question)
@@ -31,9 +33,10 @@ class QuestionAdmin(admin.ModelAdmin):
     """
     #list_display = ('question_text', 'quiz', 'question_type', 'points', 'order', 'is_active')
     #list_filter = ('question_type', 'is_active', 'quiz__subject')
-    search_fields = ('question_text',)
+     list_display = ('email', 'is_active', 'is_staff')
+     search_fields = ('question_text',)
     #raw_id_fields = ('quiz',)
-    inlines = [QuestionOptionInline]
+     inlines = [QuestionOptionInline]
 
 
 @admin.register(QuestionOption)
@@ -43,7 +46,8 @@ class QuestionOptionAdmin(admin.ModelAdmin):
     """
     #list_display = ('option_text', 'question', 'is_correct', 'order')
     #list_filter = ('is_correct', 'question__quiz')
-    search_fields = ('option_text',)
+     list_display = ('email', 'is_active', 'is_staff')
+     search_fields = ('option_text',)
     #raw_id_fields = ('question',)
 
 
@@ -54,6 +58,8 @@ class QuizAttemptAdmin(admin.ModelAdmin):
     """
     #list_display = ('student', 'quiz', 'started_at', 'completed_at', 'score', 'is_passed', 'is_completed')
     #list_filter = ('is_completed', 'is_passed', 'started_at', 'quiz__subject')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('student__username', 'quiz__title')
     #raw_id_fields = ('student', 'quiz')
     readonly_fields = ('started_at', 'completed_at')
@@ -66,6 +72,8 @@ class QuizAnswerAdmin(admin.ModelAdmin):
     """
     #list_display = ('attempt', 'question', 'selected_option', 'is_correct', 'points_earned', 'answered_at')
     #list_filter = ('is_correct', 'answered_at', 'attempt__quiz')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('attempt__student__username', 'question__question_text')
     #raw_id_fields = ('attempt', 'question', 'selected_option')
     readonly_fields = ('answered_at',)
@@ -78,6 +86,8 @@ class QuizResultAdmin(admin.ModelAdmin):
     """
     #list_display = ('attempt', 'total_questions', 'correct_answers', 'accuracy_percentage', 'created_at')
     #list_filter = ('created_at', 'attempt__quiz__subject')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('attempt__student__username', 'attempt__quiz__title')
     #raw_id_fields = ('attempt',)
     readonly_fields = ('created_at',)
@@ -90,6 +100,8 @@ class QuizAnalyticsAdmin(admin.ModelAdmin):
     """
     #list_display = ('quiz', 'total_attempts', 'average_score', 'pass_rate', 'last_updated')
     #list_filter = ('last_updated', 'quiz__subject')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('quiz__title',)
     #raw_id_fields = ('quiz',)
     readonly_fields = ('last_updated',)
