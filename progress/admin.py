@@ -29,7 +29,8 @@ class AssignmentAdmin(admin.ModelAdmin):
 
     search_fields = ('title', 'description')
     #raw_id_fields = ('assigned_by', 'subject')
-    filter_horizontal = ('assigned_to',)
+    #filter_horizontal = ('assigned_to',)
+pass
 
 
 @admin.register(AssignmentSubmission)
@@ -43,7 +44,8 @@ class AssignmentSubmissionAdmin(admin.ModelAdmin):
 
     search_fields = ('assignment__title', 'student__username')
     #raw_id_fields = ('assignment', 'student', 'graded_by')
-    readonly_fields = ('submitted_at', 'graded_at')
+    #readonly_fields = ('submitted_at', 'graded_at')
+pass
 
 
 @admin.register(Grade)
@@ -96,7 +98,8 @@ class StudentProgressAdmin(admin.ModelAdmin):
 
     search_fields = ('student__username', 'subject__name')
     #raw_id_fields = ('student', 'subject')
-    readonly_fields = ('last_updated',)
+    #readonly_fields = ('last_updated',)
+pass
 
 
 @admin.register(Achievement)
