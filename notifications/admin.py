@@ -42,7 +42,9 @@ class NotificationAdmin(admin.ModelAdmin):
 
     search_fields = ('title', 'message', 'recipient__username')
     #raw_id_fields = ('recipient', 'sender')
-    readonly_fields = ('created_at', 'read_at')
+    #readonly_fields = ('created_at', 'read_at')
+pass
+
 
 
 @admin.register(Announcement)
@@ -82,4 +84,5 @@ class FeedbackAdmin(admin.ModelAdmin):
 
     search_fields = ('subject', 'message', 'user__username')
     #raw_id_fields = ('user', 'responded_by')
-    readonly_fields = ('created_at', 'responded_at')
+    #readonly_fields = ('created_at', 'responded_at')
+pass
