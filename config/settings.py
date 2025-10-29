@@ -100,9 +100,8 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # }
 
 # PostgreSQL Database Configuration - NOVYA Database
+# PostgreSQL Database Configuration - NOVYA Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'mydjangoapp-novya',
