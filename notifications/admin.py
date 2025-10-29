@@ -18,27 +18,27 @@ class EventRegistrationAdmin(admin.ModelAdmin):
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('title', 'recipient', 'notification_type', 'priority', 'is_read', 'created_at')
-    list_filter = ('notification_type', 'priority', 'is_read', 'created_at')
+    list_display = ('title', 'recipient', 'notification_type', 'is_read', 'created_at')  # removed 'priority'
+    list_filter = ('notification_type', 'is_read', 'created_at')  # removed 'priority'
     search_fields = ('title', 'message', 'recipient__username')
 
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ('title', 'author', 'target_audience', 'is_published', 'is_important', 'created_at')
-    list_filter = ('target_audience', 'is_published', 'is_important', 'created_at')
+    list_display = ('title', 'target_audience', 'is_published', 'created_at')  # removed 'author', 'is_important'
+    list_filter = ('target_audience', 'is_published', 'created_at')  # removed 'is_important'
     search_fields = ('title', 'content')
 
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ('subject', 'sender', 'recipient', 'is_read', 'is_important', 'created_at')
-    list_filter = ('is_read', 'is_important', 'created_at')
+    list_display = ('subject', 'sender', 'recipient', 'is_read', 'created_at')  # removed 'is_important'
+    list_filter = ('is_read', 'created_at')  # removed 'is_important'
     search_fields = ('subject', 'content', 'sender__username', 'recipient__username')
 
 
 @admin.register(Feedback)
 class FeedbackAdmin(admin.ModelAdmin):
-    list_display = ('user', 'feedback_type', 'subject', 'is_anonymous', 'is_resolved', 'created_at')
-    list_filter = ('feedback_type', 'is_anonymous', 'is_resolved', 'created_at')
+    list_display = ('user', 'feedback_type', 'subject', 'is_resolved', 'created_at')  # removed 'is_anonymous'
+    list_filter = ('feedback_type', 'is_resolved', 'created_at')  # removed 'is_anonymous'
     search_fields = ('subject', 'message', 'user__username')
