@@ -8,8 +8,8 @@ class UserAdmin(BaseUserAdmin):
     """
     Admin configuration for custom User model
     """
-    list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'date_joined')
-    list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
+    #list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'date_joined')
+    #list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
     search_fields = ('username', 'email', 'first_name', 'last_name')
     ordering = ('-date_joined',)
     
@@ -33,10 +33,10 @@ class StudentAdmin(admin.ModelAdmin):
     """
     Admin configuration for Student model
     """
-    list_display = ('user', 'grade', 'roll_number', 'parent', 'admission_date')
-    list_filter = ('grade', 'admission_date')
+    #list_display = ('user', 'grade', 'roll_number', 'parent', 'admission_date')
+    #list_filter = ('grade', 'admission_date')
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'roll_number')
-    raw_id_fields = ('user', 'parent')
+    #raw_id_fields = ('user', 'parent')
 
 
 @admin.register(Parent)
@@ -44,10 +44,10 @@ class ParentAdmin(admin.ModelAdmin):
     """
     Admin configuration for Parent model
     """
-    list_display = ('user', 'occupation', 'workplace', 'relationship_with_student')
-    list_filter = ('occupation', 'relationship_with_student')
+    #list_display = ('user', 'occupation', 'workplace', 'relationship_with_student')
+    #list_filter = ('occupation', 'relationship_with_student')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
-    raw_id_fields = ('user',)
+    #raw_id_fields = ('user',)
 
 
 #@admin.register(Teacher)
@@ -67,7 +67,7 @@ class PasswordResetTokenAdmin(admin.ModelAdmin):
     """
     Admin configuration for PasswordResetToken model
     """
-    list_display = ('user', 'token', 'created_at', 'expires_at', 'is_used')
-    list_filter = ('is_used', 'created_at', 'expires_at')
+    #list_display = ('user', 'token', 'created_at', 'expires_at', 'is_used')
+    #list_filter = ('is_used', 'created_at', 'expires_at')
     search_fields = ('user__username', 'user__email', 'token')
     readonly_fields = ('token', 'created_at')
