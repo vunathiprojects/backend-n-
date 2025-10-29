@@ -1,8 +1,5 @@
 from django.contrib import admin
-from .models import (
-    Attendance, Assignment, AssignmentSubmission, Grade, StudyPlan,
-    StudyPlanItem, StudentProgress, Achievement
-)
+from .models import progress
 
 
 @admin.register(Attendance)
