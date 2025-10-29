@@ -102,7 +102,20 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # PostgreSQL Database Configuration - NOVYA Database
 DATABASES = {
     'default': {
+        'ENGINE': 'DATABASES = {
+    'default': {
         'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mydjangoapp-novya',
+        'USER': 'novya',
+        'PASSWORD': 'Vunathi@1234',
+        'HOST': 'mydbserver-novya.postgres.database.azure.com',
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
+    }
+}
+',
         'NAME': 'novya',  # Your database name
         'USER': 'postgres',
         'PASSWORD': '12345',  # Your PostgreSQL password
