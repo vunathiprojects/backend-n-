@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Student, Parent, Teacher, PasswordResetToken
+from .models import User, Student, Parent, PasswordResetToken
 
 
 @admin.register(User)
