@@ -23,7 +23,7 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'yourapp.azurewebsites.net
 # APPLICATIONS
 INSTALLED_APPS = [
     # Uncomment if admin is configured
-    # 'django.contrib.admin',
+    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
