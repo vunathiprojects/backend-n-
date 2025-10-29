@@ -50,16 +50,16 @@ class ParentAdmin(admin.ModelAdmin):
     raw_id_fields = ('user',)
 
 
-@admin.register(Teacher)
-class TeacherAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for Teacher model
-    """
-    list_display = ('user', 'employee_id', 'department', 'experience_years')
-    list_filter = ('department', 'experience_years')
-    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'employee_id')
-    raw_id_fields = ('user',)
-    filter_horizontal = ('subjects',)
+#@admin.register(Teacher)
+#class TeacherAdmin(admin.ModelAdmin):
+ #   """
+  #  Admin configuration for Teacher model
+   # """
+    #list_display = ('user', 'employee_id', 'department', 'experience_years')
+    #list_filter = ('department', 'experience_years')
+    #search_fields = ('user__username', 'user__first_name', 'user__last_name', 'employee_id')
+    #raw_id_fields = ('user',)
+    #filter_horizontal = ('subjects',)
 
 
 @admin.register(PasswordResetToken)
