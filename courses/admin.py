@@ -12,6 +12,8 @@ class SubjectAdmin(admin.ModelAdmin):
     """
     #list_display = ('name', 'is_active', 'created_at')
     #list_filter = ('is_active', 'created_at')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('name', 'description')
 
 
@@ -22,6 +24,8 @@ class CourseAdmin(admin.ModelAdmin):
     """
     #list_display = ('title', 'subject', 'grade', 'instructor', 'duration_hours', 'is_published', 'created_at')
     #list_filter = ('subject', 'grade', 'is_published', 'created_at')
+     list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('title', 'description')
     #raw_id_fields = ('instructor',)
     filter_horizontal = ()
@@ -34,6 +38,8 @@ class ChapterAdmin(admin.ModelAdmin):
     """
     #list_display = ('title', 'course', 'chapter_number', 'order', 'is_published')
     #list_filter = ('course', 'is_published')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('title', 'description')
     #raw_id_fields = ('course',)
 
@@ -45,6 +51,8 @@ class LessonAdmin(admin.ModelAdmin):
     """
     #list_display = ('title', 'chapter', 'lesson_type', 'duration_minutes', 'order', 'is_published')
     #list_filter = ('lesson_type', 'is_published', 'chapter__course')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('title', 'description')
     #raw_id_fields = ('chapter',)
 
@@ -56,6 +64,8 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
     """
     #list_display = ('student', 'course', 'enrolled_at', 'is_active', 'progress_percentage')
     #list_filter = ('is_active', 'enrolled_at', 'course__subject')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('student__username', 'course__title')
     #raw_id_fields = ('student', 'course')
 
@@ -67,6 +77,8 @@ class LessonProgressAdmin(admin.ModelAdmin):
     """
     #list_display = ('student', 'lesson', 'is_completed', 'completion_percentage', 'time_spent_minutes', 'last_accessed')
     #list_filter = ('is_completed', 'lesson__chapter__course')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('student__username', 'lesson__title')
     #raw_id_fields = ('student', 'lesson')
 
@@ -78,5 +90,7 @@ class CourseMaterialAdmin(admin.ModelAdmin):
     """
     #list_display = ('title', 'course', 'material_type', 'is_required', 'order')
     #list_filter = ('material_type', 'is_required', 'course')
+    list_display = ('email', 'is_active', 'is_staff')
+
     search_fields = ('title', 'description')
     #raw_id_fields = ('course',)
