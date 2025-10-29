@@ -1,73 +1,71 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import User, Student, Parent, PasswordResetToken
+from .models import (
+    ParentRegistration,
+    StudentRegistration,
+    ParentStudentMapping,
+    Class,
+    User,
+    Parent,
+    Student,
+    StudentProfile,
+    PasswordResetToken
+)
+
+@admin.register(ParentRegistration)
+class ParentRegistrationAdmin(admin.ModelAdmin):
+    list_display = ('parent_id', 'email', 'first_name', 'last_name', 'phone_number', 'parent_username', 'created_at')
+    search_fields = ('email', 'first_name', 'last_name', 'phone_number', 'parent_username')
+    list_filter = ('created_at',)
+
+
+@admin.register(StudentRegistration)
+class StudentRegistrationAdmin(admin.ModelAdmin):
+    list_display = ('student_id', 'first_name', 'last_name', 'student_username', 'student_email', 'parent_email', 'created_at')
+    search_fields = ('first_name', 'last_name', 'student_username', 'student_email', 'parent_email')
+    list_filter = ('created_at',)
+
+
+@admin.register(ParentStudentMapping)
+class ParentStudentMappingAdmin(admin.ModelAdmin):
+    list_display = ('mapping_id', 'parent_email', 'student_id')
+    search_fields = ('parent_email', 'student_id')
+
+
+@admin.register(Class)
+class ClassAdmin(admin.ModelAdmin):
+    list_display = ('class_id', 'class_name')
+    search_fields = ('class_name',)
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
-    """
-    Admin configuration for custom User model
-    """
-    #list_display = ('username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'date_joined')
-    #list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
-    search_fields = ('username', 'email', 'first_name', 'last_name')
-    ordering = ('-date_joined',)
-    
-    fieldsets = (
-        (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'email', 'phone', 'date_of_birth', 'address', 'profile_picture')}),
-        ('Role & Permissions', {'fields': ('role', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
-        ('Important dates', {'fields': ('last_login', 'date_joined')}),
-    )
-    
-    add_fieldsets = (
-        (None, {
-            'classes': ('wide',),
-            'fields': ('username', 'email', 'first_name', 'last_name', 'role', 'password1', 'password2'),
-        }),
-    )
-
-
-@admin.register(Student)
-class StudentAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for Student model
-    """
-    #list_display = ('user', 'grade', 'roll_number', 'parent', 'admission_date')
-    #list_filter = ('grade', 'admission_date')
-    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'roll_number')
-    #raw_id_fields = ('user', 'parent')
+class UserAdmin(admin.ModelAdmin):
+    list_display = ('userid', 'username', 'firstname', 'lastname', 'email', 'role', 'is_active', 'is_staff', 'is_superuser', 'createdat')
+    search_fields = ('username', 'firstname', 'lastname', 'email', 'role')
+    list_filter = ('role', 'is_active', 'is_staff', 'is_superuser')
+    ordering = ('userid',)
 
 
 @admin.register(Parent)
 class ParentAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for Parent model
-    """
-    #list_display = ('user', 'occupation', 'workplace', 'relationship_with_student')
-    #list_filter = ('occupation', 'relationship_with_student')
-    search_fields = ('user__username', 'user__first_name', 'user__last_name')
-    #raw_id_fields = ('user',)
+    list_display = ('parent',)
+    search_fields = ('parent__username', 'parent__firstname', 'parent__lastname')
 
 
-#@admin.register(Teacher)
-#class TeacherAdmin(admin.ModelAdmin):
- #   """
-  #  Admin configuration for Teacher model
-   # """
-    #list_display = ('user', 'employee_id', 'department', 'experience_years')
-    #list_filter = ('department', 'experience_years')
-    #search_fields = ('user__username', 'user__first_name', 'user__last_name', 'employee_id')
-    #raw_id_fields = ('user',)
-    #filter_horizontal = ('subjects',)
+@admin.register(Student)
+class StudentAdmin(admin.ModelAdmin):
+    list_display = ('student', 'class_field', 'parent')
+    search_fields = ('student__username', 'student__firstname', 'student__lastname')
+    list_filter = ('class_field',)
+
+
+@admin.register(StudentProfile)
+class StudentProfileAdmin(admin.ModelAdmin):
+    list_display = ('profile_id', 'student_id', 'student_username', 'parent_email', 'grade', 'school', 'course_id')
+    search_fields = ('student_username', 'parent_email', 'grade', 'school')
 
 
 @admin.register(PasswordResetToken)
 class PasswordResetTokenAdmin(admin.ModelAdmin):
-    """
-    Admin configuration for PasswordResetToken model
-    """
-    #list_display = ('user', 'token', 'created_at', 'expires_at', 'is_used')
-    #list_filter = ('is_used', 'created_at', 'expires_at')
-    search_fields = ('user__username', 'user__email', 'token')
-    readonly_fields = ('token', 'created_at')
+    list_display = ('user', 'token', 'created_at', 'expires_at', 'is_used')
+    search_fields = ('user__username', 'token')
+    list_filter = ('is_used', 'created_at')
