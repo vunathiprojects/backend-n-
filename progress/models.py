@@ -12,12 +12,12 @@ class Assignment(models.Model):
     description = models.TextField()
     due_date = models.DateField()
     file_url = models.TextField(null=True, blank=True)
-    
+
     def __str__(self):
         return f"{self.description[:50]}... - {self.topic_id.topic_name}"
-    
+
     class Meta:
-        db_table = 'assignments'  # Updated table name to match schema
+        db_table = 'assignments'
         verbose_name = 'Assignment'
         verbose_name_plural = 'Assignments'
 
@@ -34,12 +34,12 @@ class AssignmentQuestion(models.Model):
     option_c = models.TextField()
     option_d = models.TextField()
     correct_option = models.CharField(max_length=1)
-    
+
     def __str__(self):
         return f"{self.question_text[:50]}... - {self.assignment_id.description[:30]}..."
-    
+
     class Meta:
-        db_table = 'assignment_question'  # Updated table name to match schema
+        db_table = 'assignment_question'
         verbose_name = 'Assignment Question'
         verbose_name_plural = 'Assignment Questions'
 
@@ -50,17 +50,17 @@ class AssignmentSubmission(models.Model):
     """
     submission_id = models.AutoField(primary_key=True)
     assignment_id = models.ForeignKey(Assignment, on_delete=models.CASCADE)
-    student_id = models.ForeignKey(StudentRegistration, on_delete=models.CASCADE)  # Updated to use StudentRegistration
+    student_id = models.ForeignKey(StudentRegistration, on_delete=models.CASCADE)
     submitted_at = models.DateTimeField(auto_now_add=True)
     file_url = models.TextField(null=True, blank=True)
     grade = models.FloatField(null=True, blank=True)
     remarks = models.TextField(null=True, blank=True)
-    
+
     def __str__(self):
         return f"{self.student_id.first_name} - {self.assignment_id.description[:30]}..."
-    
+
     class Meta:
-        db_table = 'assignment_submission'  # Updated table name to match schema
+        db_table = 'assignment_submission'
         verbose_name = 'Assignment Submission'
         verbose_name_plural = 'Assignment Submissions'
 
@@ -74,12 +74,12 @@ class AssignmentAnswer(models.Model):
     question_id = models.ForeignKey(AssignmentQuestion, on_delete=models.CASCADE)
     selected_option = models.CharField(max_length=1)
     is_correct = models.BooleanField()
-    
+
     def __str__(self):
         return f"{self.submission_id.student_id.first_name} - Q{self.question_id.question_id}"
-    
+
     class Meta:
-        db_table = 'assignment_answer'  # Updated table name to match schema
+        db_table = 'assignment_answer'
         verbose_name = 'Assignment Answer'
         verbose_name_plural = 'Assignment Answers'
 
@@ -94,10 +94,11 @@ class CareerPerformance(models.Model):
     avg_mocktest_score = models.FloatField(null=True, blank=True)
     overall_rating = models.FloatField(null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
-    
+
     def __str__(self):
-        return f"{self.student_id.student_id.firstname} - Performance"
-    
+        # ✅ fixed attribute reference (firstname instead of student_id.firstname)
+        return f"{self.student_id.firstname} - Performance"
+
     class Meta:
         db_table = 'careerperformance'
         verbose_name = 'Career Performance'
@@ -114,7 +115,7 @@ class MentorshipTicket(models.Model):
         ('resolved', 'Resolved'),
         ('closed', 'Closed'),
     ]
-    
+
     ticket_id = models.AutoField(primary_key=True)
     student_id = models.ForeignKey(Student, on_delete=models.CASCADE)
     instructor_id = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
@@ -123,17 +124,16 @@ class MentorshipTicket(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
-    
+
     def __str__(self):
-        return f"{self.title} - {self.student_id.student_id.firstname}"
-    
+        return f"{self.title} - {self.student_id.firstname}"
+
     class Meta:
         db_table = 'mentorshipticket'
         verbose_name = 'Mentorship Ticket'
         verbose_name_plural = 'Mentorship Tickets'
 
 
-# Legacy models for backward compatibility (if needed)
 class Attendance(models.Model):
     """
     Attendance model for backward compatibility
@@ -144,17 +144,17 @@ class Attendance(models.Model):
         ('late', 'Late'),
         ('excused', 'Excused'),
     ]
-    
+
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
     date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     remarks = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     def __str__(self):
-        return f"{self.student.student_id.firstname} - {self.date} - {self.status}"
-    
+        return f"{self.student.firstname} - {self.date} - {self.status}"
+
     class Meta:
         db_table = 'attendance'
         unique_together = ['student', 'course', 'date']
@@ -175,10 +175,10 @@ class Grade(models.Model):
     comments = models.TextField(blank=True, null=True)
     graded_by = models.ForeignKey(User, on_delete=models.CASCADE)
     graded_at = models.DateTimeField(auto_now_add=True)
-    
+
     def __str__(self):
-        return f"{self.student.student_id.firstname} - {self.grade_value}/{self.max_grade}"
-    
+        return f"{self.student.firstname} - {self.grade_value}/{self.max_grade}"
+
     class Meta:
         db_table = 'grades'
         verbose_name = 'Grade'
@@ -198,10 +198,10 @@ class StudentProgress(models.Model):
     total_assignments = models.PositiveIntegerField(default=0)
     last_accessed = models.DateTimeField(auto_now=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    
+
     def __str__(self):
-        return f"{self.student.student_id.firstname} - {self.course.course_name} - {self.overall_percentage}%"
-    
+        return f"{self.student.firstname} - {self.course.course_name} - {self.overall_percentage}%"
+
     class Meta:
         db_table = 'student_progress'
         unique_together = ['student', 'course']
@@ -221,10 +221,10 @@ class StudyPlan(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def __str__(self):
-        return f"{self.student.student_id.firstname} - {self.title}"
-    
+        return f"{self.student.firstname} - {self.title}"
+
     class Meta:
         db_table = 'study_plans'
         verbose_name = 'Study Plan'
@@ -242,10 +242,10 @@ class StudyPlanItem(models.Model):
     is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
-    
+
     def __str__(self):
         return f"{self.study_plan.title} - {self.title}"
-    
+
     class Meta:
         db_table = 'study_plan_items'
         ordering = ['order']
@@ -263,10 +263,10 @@ class Achievement(models.Model):
     achievement_type = models.CharField(max_length=50)
     points = models.PositiveIntegerField(default=0)
     earned_at = models.DateTimeField(auto_now_add=True)
-    
+
     def __str__(self):
-        return f"{self.student.student_id.firstname} - {self.title}"
-    
+        return f"{self.student.firstname} - {self.title}"
+
     class Meta:
         db_table = 'achievements'
         verbose_name = 'Achievement'
