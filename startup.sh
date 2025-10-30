@@ -1,23 +1,23 @@
 #!/bin/bash
-export PATH=$PATH:/home/.local/bin
-echo "🚀 Starting Combined Django + FastAPI app on port 8000..."
+echo "🚀 Starting FastAPI + Django (Combined App)..."
 
-# Stop if any command fails
+# Stop on error
 set -e
 
-# === Kill any old process using port 8000 ===
-echo "🧹 Checking for process on port 8000..."
-PID=$(netstat -tuln 2>/dev/null | grep ":8000 " | awk '{print $7}' | cut -d'/' -f1)
-if [ -n "$PID" ]; then
-  echo "Killing old process ($PID)..."
-  kill -9 $PID || true
-fi
+# Add user/local bin paths
+export PATH=$PATH:/home/.local/bin:/home/site/wwwroot/.local/bin
 
-# === Start Combined App (Django + FastAPI) ===
-echo "⚡ Launching Uvicorn (combined_app.py) on port 8000..."
+# Confirm Python path
+echo "🐍 Python path: $(which python3)"
+python3 --version
+
+# Kill any leftover processes
+pkill -f "uvicorn" || true
+pkill -f "gunicorn" || true
+
+# Start combined app
+echo "⚡ Starting combined FastAPI + Django..."
 nohup python3 -m uvicorn combined_app:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &
 
-sleep 3
-
-echo "✅ Combined app started successfully!"
-echo "📜 Logs: app.log"
+echo "✅ App started!"
+echo "📜 Logs: tail -f /home/site/wwwroot/app.log"
