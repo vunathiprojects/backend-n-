@@ -1,32 +1,43 @@
 #!/bin/bash
-echo "Starting FastAPI (AI Backend)..."
+echo "🚀 Starting FastAPI + Django services..."
 
-# Kill any process using port 8181 (Django port)
-echo "Checking and killing any process using port 8181..."
-python3 - <<'EOF'
-import os, socket, subprocess
-try:
-    s = socket.socket()
-    s.bind(("0.0.0.0", 8181))
-    s.close()
-except OSError:
-    print("Port 8181 is in use — trying to kill process...")
-    try:
-        out = subprocess.check_output("ps aux | grep gunicorn | grep 8181 | awk '{print $2}'", shell=True)
-        for pid in out.decode().split():
-            os.system(f"kill -9 {pid}")
-            print(f"Killed PID {pid}")
-    except Exception as e:
-        print(f"Could not kill old process: {e}")
-EOF
+# Exit if any command fails
+set -e
 
-# Start FastAPI (port 8002)
-( cd ai_backend && nohup python3 -m uvicorn app:app --host 0.0.0.0 --port 8002 & )
+# === Kill old Django process (port 8181) if exists ===
+echo "🧹 Checking for process on port 8181..."
+PID=$(lsof -t -i:8181 || true)
+if [ -n "$PID" ]; then
+  echo "Killing old Django process ($PID)..."
+  kill -9 $PID || true
+fi
 
-# Start Django (port 8181)
-echo "Starting Django Backend..."
-( nohup gunicorn config.wsgi:application --bind 0.0.0.0:8181 & )
+# === Kill old FastAPI process (port 8002) if exists ===
+echo "🧹 Checking for process on port 8002..."
+PID=$(lsof -t -i:8002 || true)
+if [ -n "$PID" ]; then
+  echo "Killing old FastAPI process ($PID)..."
+  kill -9 $PID || true
+fi
 
-echo "Both backends started!"
+# === Start FastAPI Backend ===
+echo "⚡ Starting FastAPI backend on port 8002..."
+cd ai_backend
+nohup python3 -m uvicorn app:app --host 0.0.0.0 --port 8002 > ../fastapi.log 2>&1 &
+cd ..
 
+sleep 3
 
+# === Start Django Backend ===
+echo "🌐 Starting Django backend on port 8181..."
+cd django_backend
+nohup gunicorn config.wsgi:application --bind 0.0.0.0:8181 > ../django.log 2>&1 &
+cd ..
+
+sleep 3
+
+# === Done ===
+echo "✅ Both FastAPI and Django are running!"
+echo "📜 Logs:"
+echo "   • FastAPI → fastapi.log"
+echo "   • Django  → django.log"
