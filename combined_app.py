@@ -1,20 +1,14 @@
+# combined_app.py
 from fastapi import FastAPI
-from ai_backend.app import app as ai_app
-from django.core.wsgi import get_wsgi_application
 from starlette.middleware.wsgi import WSGIMiddleware
-import os
+from config.wsgi import application as django_app
 
-# ✅ Correct Django settings path
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+# Create FastAPI app
+app = FastAPI()
 
-# ✅ Initialize Django WSGI app
-django_app = get_wsgi_application()
+# Mount Django under /django (you can change this path)
+app.mount("/django", WSGIMiddleware(django_app))
 
-# ✅ Create FastAPI main app
-main_app = FastAPI()
-
-# ✅ Mount FastAPI AI backend
-main_app.mount("/ai", ai_app)
-
-# ✅ Mount Django app
-main_app.mount("/", WSGIMiddleware(django_app))
+@app.get("/")
+def home():
+    return {"message": "Combined Django + FastAPI is running!"}
