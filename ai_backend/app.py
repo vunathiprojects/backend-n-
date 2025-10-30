@@ -8,17 +8,25 @@ import logging
 from openai import OpenAI
 from typing import Dict, List, Optional
 
+# -------------------------------
 # Configure logging
+# -------------------------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# -------------------------------
+# Load environment variables
+# -------------------------------
 load_dotenv()
 API_KEY = os.getenv("OPENROUTER_API_KEY")
+
 if not API_KEY:
     logger.error("OPENROUTER_API_KEY not found in environment variables")
-    API_KEY = "invalid_key"  # Set a placeholder to prevent startup crash
+    API_KEY = "invalid_key"  # placeholder to prevent startup crash
 
-# Initialize client with error handling
+# -------------------------------
+# Initialize OpenAI client
+# -------------------------------
 try:
     client = OpenAI(api_key=API_KEY, base_url="https://openrouter.ai/api/v1")
     logger.info("OpenAI client initialized successfully")
@@ -26,8 +34,12 @@ except Exception as e:
     logger.error(f"Failed to initialize OpenAI client: {e}")
     client = None
 
-app = FastAPI()
+# -------------------------------
+# Create FastAPI app
+# -------------------------------
+app = FastAPI(title="AI Chat Backend", version="1.0")
 
+# Allow all origins (you can restrict this later)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,13 +48,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydantic Models
+# -------------------------------
+# Define request models
+# -------------------------------
 class ChatRequest(BaseModel):
     class_level: str
     subject: str
     chapter: str
     student_question: str
-    chat_history: Optional[List[Dict]] = None
+    chat_history: Optional[List[Dict[str, str]]] = None
 
 class StudyPlanRequest(BaseModel):
     class_level: str
@@ -56,6 +70,10 @@ class NotesRequest(BaseModel):
     subject: str
     chapter: str
     specific_topic: Optional[str] = None
+
+# -------------------------------
+# Curriculum Data
+# -------------------------------
 # Corrected CBSE 7th–10th Computers & English units & topics (for quickpractice)
 CHAPTERS_DETAILED = {
     "7th": {
@@ -541,7 +559,7 @@ CHAPTERS_DETAILED = {
         "Chapter 5: Squares and Square Roots": ["Introduction", "Properties of Square Numbers", "Some More Interesting Patterns", "Finding the Square of a Number", "Square Roots", "Square Roots of Decimals", "Estimating Square Root"],
         "Chapter 6: Cubes and Cube Roots": ["Introduction", "Cubes", "Cubes Roots"],
         "Chapter 7: Comparing Quantities": ["Recalling Ratios and Percentages", "Finding the Increase and Decrease Percent", "Finding Discounts", "Prices Related to Buying and Selling (Profit and Loss)", "Sales Tax/Value Added Tax/Goods and Services Tax", "Compound Interest", "Deducing a Formula for Compound Interest", "Rate Compounded Annually or Half Yearly (Semi Annually)", "Applications of Compound Interest Formula"],
-        "Chapter 8: Algebraic Expressions and Identities": ["What are Expressions?", "Terms, Factors and Coefficients", "Monomials, Binomials and Polynomials", "Like and Unlike Terms", "Addition and Subtraction of Algebraic Expressions", "Multiplication of Algebraic Expressions: Introduction", "Multiplying a Monomial by a Monomial", "Multiplying a Monomial by a Polynomial", "Multiplying a Polynomial by a Polynomial", "What is an Identity?", "Standard Identities", "Applying Identities"],
+        "Chapter 8: Algebraic Expressions and Identities": ["What are Expressions?", "Terms, Factors and Coefficients", "Monomials, Binomials and Polynomials", "Like and Unlike Terms", "Addition and Subtraction of Algebraic Expressions", "Multiplication of Algebraic Expressions: Introduction", "Multiplying a Mononym by a Mononym", "Multiplying a Mononym by a Polynomial", "Multiplying a Polynomial by a Polynomial", "What is an Identity?", "Standard Identities", "Applying Identities"],
         "Chapter 9: Mensuration": ["Introduction", "Let us Recall", "Area of Trapezium", "Area of General Quadrilateral", "Area of Polygons", "Solid Shapes", "Surface Area of Cube, Cuboid and Cylinder", "Volume of Cube, Cuboid and Cylinder", "Volume and Capacity"],
         "Chapter 10: Exponents and Powers": ["Introduction", "Powers with Negative Exponents", "Laws of Exponents", "Use of Exponents to Express Small Numbers in Standard Form"],
         "Chapter 11: Direct and Inverse Proportions": ["Introduction", "Direct Proportion", "Inverse Proportion"],
@@ -1280,6 +1298,10 @@ CHAPTERS_SIMPLE = {
         ]
     }
 }
+
+# -------------------------------
+# Global variables
+# -------------------------------
 MAX_PREVIOUS_QUESTIONS = 100
 PREVIOUS_QUESTIONS_QUICK = {}
 PREVIOUS_QUESTIONS_MOCK = {}
@@ -1336,60 +1358,23 @@ FALLBACK_QUIZZES = {
                 "To connect to the internet"
             ],
             "answer": "To translate code into machine language"
-        },
-        {
-            "question": "Which of these is a high-level programming language?",
-            "options": [
-                "Python",
-                "Assembly",
-                "Machine Code",
-                "Binary"
-            ],
-            "answer": "Python"
-        },
-        {
-            "question": "What does IDE stand for?",
-            "options": [
-                "Integrated Development Environment",
-                "Internet Data Exchange",
-                "Internal Design Engine",
-                "Interactive Data Entry"
-            ],
-            "answer": "Integrated Development Environment"
-        },
-        {
-            "question": "Which programming language is used for web development?",
-            "options": [
-                "JavaScript",
-                "Python",
-                "C++",
-                "Assembly"
-            ],
-            "answer": "JavaScript"
-        },
-        {
-            "question": "What is a variable in programming?",
-            "options": [
-                "A container that stores data",
-                "A type of function",
-                "A programming language",
-                "A computer component"
-            ],
-            "answer": "A container that stores data"
-        },
-        {
-            "question": "Which of these is a programming paradigm?",
-            "options": [
-                "Object-Oriented Programming",
-                "Web Browsing",
-                "File Management",
-                "Data Storage"
-            ],
-            "answer": "Object-Oriented Programming"
         }
     ]
 }
 
+# Language instruction mapping
+LANGUAGE_INSTRUCTIONS = {
+    "English": "Generate all questions and options in English.",
+    "Telugu": "Generate all questions and options in Telugu language (తెలుగు). Use Telugu script.",
+    "Hindi": "Generate all questions and options in Hindi language (हिंदी). Use Devanagari script.",
+    "Tamil": "Generate all questions and options in Tamil language (தமிழ்). Use Tamil script.",
+    "Kannada": "Generate all questions and options in Kannada language (ಕನ್ನಡ). Use Kannada script.",
+    "Malayalam": "Generate all questions and options in Malayalam language (മലയാളം). Use Malayalam script."
+}
+
+# -------------------------------
+# Helper functions
+# -------------------------------
 def get_fallback_quiz(subtopic: str, difficulty: str, language: str):
     """Return a fallback quiz when API is unavailable"""
     logger.info(f"Using fallback quiz for: {subtopic}")
@@ -1447,17 +1432,66 @@ def get_fallback_quiz(subtopic: str, difficulty: str, language: str):
         "source": "fallback"
     }
 
-# Language instruction mapping
-LANGUAGE_INSTRUCTIONS = {
-    "English": "Generate all questions and options in English.",
-    "Telugu": "Generate all questions and options in Telugu language (తెలుగు). Use Telugu script.",
-    "Hindi": "Generate all questions and options in Hindi language (हिंदी). Use Devanagari script.",
-    "Tamil": "Generate all questions and options in Tamil language (தமிழ்). Use Tamil script.",
-    "Kannada": "Generate all questions and options in Kannada language (ಕನ್ನಡ). Use Kannada script.",
-    "Malayalam": "Generate all questions and options in Malayalam language (മലയാളം). Use Malayalam script."
-}
+def _classify_question_type(question: str) -> str:
+    """Classify the type of question for better response handling"""
+    question_lower = question.lower()
+   
+    if any(word in question_lower for word in ['study plan', 'schedule', 'timetable', 'how to study', 'plan']):
+        return "study_plan"
+    elif any(word in question_lower for word in ['notes', 'summary', 'key points', 'important points', 'write down']):
+        return "notes"
+    elif any(word in question_lower for word in ['explain', 'what is', 'how does', 'why', 'meaning', 'define']):
+        return "explanation"
+    elif any(word in question_lower for word in ['practice', 'exercise', 'question', 'problem', 'solve', 'worksheet']):
+        return "practice"
+    elif any(word in question_lower for word in ['related', 'connect', 'application', 'real world', 'where used']):
+        return "related_concepts"
+    elif any(word in question_lower for word in ['example', 'examples', 'sample']):
+        return "examples"
+    else:
+        return "general"
 
+# -------------------------------
+# Health check endpoint
+# -------------------------------
+@app.get("/")
+async def health_check():
+    return {"status": "ok", "message": "FastAPI is running successfully!"}
+
+# -------------------------------
+# AI chat endpoint
+# -------------------------------
+@app.post("/chat")
+async def chat_endpoint(request: ChatRequest):
+    if not client or API_KEY == "invalid_key":
+        raise HTTPException(status_code=500, detail="OpenAI client not initialized")
+
+    try:
+        messages = [
+            {"role": "system", "content": f"You are a helpful AI tutor for {request.subject}, class {request.class_level}."},
+        ]
+
+        if request.chat_history:
+            messages.extend(request.chat_history)
+
+        messages.append({"role": "user", "content": request.student_question})
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            temperature=0.7,
+        )
+
+        answer = response.choices[0].message.content.strip()
+        return {"answer": answer}
+
+    except Exception as e:
+        logger.error(f"Error during chat request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# -------------------------------
 # Quick Practice Endpoints
+# -------------------------------
 @app.get("/classes")
 def get_classes():
     logger.info("Fetching available classes")
@@ -1626,27 +1660,9 @@ def get_quiz(
         logger.error(f"Error generating quiz: {str(e)}")
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
+# -------------------------------
 # AI Assistant Endpoints
-def _classify_question_type(question: str) -> str:
-    """Classify the type of question for better response handling"""
-    question_lower = question.lower()
-   
-    if any(word in question_lower for word in ['study plan', 'schedule', 'timetable', 'how to study', 'plan']):
-        return "study_plan"
-    elif any(word in question_lower for word in ['notes', 'summary', 'key points', 'important points', 'write down']):
-        return "notes"
-    elif any(word in question_lower for word in ['explain', 'what is', 'how does', 'why', 'meaning', 'define']):
-        return "explanation"
-    elif any(word in question_lower for word in ['practice', 'exercise', 'question', 'problem', 'solve', 'worksheet']):
-        return "practice"
-    elif any(word in question_lower for word in ['related', 'connect', 'application', 'real world', 'where used']):
-        return "related_concepts"
-    elif any(word in question_lower for word in ['example', 'examples', 'sample']):
-        return "examples"
-    else:
-        return "general"
-
-# AI Assistant Endpoints
+# -------------------------------
 @app.post("/ai-assistant/chat")
 async def ai_assistant_chat(request: ChatRequest):
     try:
@@ -1917,7 +1933,10 @@ async def generate_notes(request: NotesRequest):
             "success": False,
             "notes": "Unable to generate notes at this time."
         }, status_code=500)
+
+# -------------------------------
 # Mock Test Endpoints
+# -------------------------------
 @app.get("/mock_classes")
 def get_mock_classes():
     logger.info("Fetching available classes for mock test")
@@ -2124,9 +2143,16 @@ def get_mock_test(
         logger.error(f"Unexpected error: {str(e)}")
         return JSONResponse(content={"currentLevel": 1, "quiz": []}, status_code=200)
 
-@app.get("/")
-def read_root():
-    return {"message": "AI Learning Assistant API is running"}
+# -------------------------------
+# Global error handler
+# -------------------------------
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": str(exc), "message": "Internal server error"},
+    )
 
 if __name__ == "__main__":
     import uvicorn
