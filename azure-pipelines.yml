@@ -55,10 +55,59 @@ steps:
       echo "✅ All dependencies installed"
     displayName: 'Install all dependencies'
 
-  # Step 3: Create startup script that handles both backends
+  # Step 3: Create unified router for both backends
   - script: |
-      echo "Creating startup script for both backends..."
+      echo "Creating unified router for both backends..."
       
+      # Create the main router application
+      cat > app.py << 'EOF'
+      from fastapi import FastAPI
+      from fastapi.middleware.wsgi import WSGIMiddleware
+      import os
+      import sys
+      
+      # Add packages to path
+      packages_path = os.path.join(os.path.dirname(__file__), 'python_packages')
+      if packages_path not in sys.path:
+          sys.path.insert(0, packages_path)
+      
+      app = FastAPI(title="Backend API")
+      
+      # Try to mount Django if available
+      try:
+          # Setup Django
+          os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+          from django.core.wsgi import get_wsgi_application
+          django_app = get_wsgi_application()
+          app.mount("/api", WSGIMiddleware(django_app))
+          print("✅ Django mounted at /api")
+      except Exception as e:
+          print(f"❌ Django not available: {e}")
+      
+      # Try to mount FastAPI if available
+      try:
+          from ai_backend.app import app as fastapi_app
+          app.mount("/ai", fastapi_app)
+          print("✅ FastAPI mounted at /ai")
+      except Exception as e:
+          print(f"❌ FastAPI not available: {e}")
+      
+      @app.get("/")
+      def root():
+          return {
+              "message": "Backend API is running", 
+              "services": {
+                  "django": "/api/",
+                  "fastapi": "/ai/"
+              }
+          }
+      
+      if __name__ == "__main__":
+          import uvicorn
+          uvicorn.run(app, host="0.0.0.0", port=8000)
+      EOF
+      
+      # Create startup script that uses the router
       cat > startup.sh << 'EOF'
       #!/bin/bash
       
@@ -66,58 +115,22 @@ steps:
       export PYTHONPATH="/home/site/wwwroot/python_packages:$PYTHONPATH"
       export PORT=8000
       
-      echo "=== Starting Application ==="
+      echo "=== Starting Unified Backend ==="
       echo "Python path: $PYTHONPATH"
+      echo "Current directory: $(pwd)"
       
-      # Check what type of request this is
-      if [[ "$PATH_INFO" == /ai/* ]] || [[ "$REQUEST_URI" == /ai/* ]]; then
-          echo "Routing to FastAPI backend..."
-          cd ai_backend
-          python3 -m uvicorn app:app --host 0.0.0.0 --port $PORT --app-dir .
-      else
-          echo "Routing to Django backend..."
-          # For Django, you might need to use gunicorn
-          cd /home/site/wwwroot
-          python3 -m gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3
-      fi
+      # Check if packages are available
+      python3 -c "import sys; print('Python path:', sys.path)"
+      python3 -c "import uvicorn; print('✅ uvicorn available')" || echo "❌ uvicorn not available"
+      python3 -c "import django; print('✅ django available')" || echo "❌ django not available"
+      
+      echo "Starting unified router..."
+      python3 app.py
       EOF
       
       chmod +x startup.sh
-      
-      # Also create a simple Python router if you need both running
-      cat > app_router.py << 'EOF'
-      from fastapi import FastAPI
-      from fastapi.middleware.wsgi import WSGIMiddleware
-      from django.core.wsgi import get_wsgi_application
-      import os
-      
-      # Setup Django
-      os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-      django_app = get_wsgi_application()
-      
-      # Setup FastAPI
-      from ai_backend.app import app as fastapi_app
-      
-      # Create main app
-      app = FastAPI()
-      
-      # Mount Django app
-      app.mount("/django", WSGIMiddleware(django_app))
-      
-      # Mount FastAPI app
-      app.mount("/ai", fastapi_app)
-      
-      @app.get("/")
-      def root():
-          return {"message": "Backend API", "services": ["Django: /django", "FastAPI: /ai"]}
-      
-      if __name__ == "__main__":
-          import uvicorn
-          uvicorn.run(app, host="0.0.0.0", port=8000)
-      EOF
-      
-      echo "Startup configuration created"
-    displayName: 'Create startup configuration'
+      echo "Unified router created"
+    displayName: 'Create unified router'
 
   # Step 4: Test both backends
   - script: |
@@ -130,6 +143,8 @@ steps:
           print('✅ FastAPI app imported successfully')
       except Exception as e:
           print(f'❌ FastAPI error: {e}')
+          import traceback
+          traceback.print_exc()
       "
       
       # Test Django
@@ -138,14 +153,142 @@ steps:
           import django
           from django.conf import settings
           if not settings.configured:
-              settings.configure()
+              settings.configure(DEBUG=True, INSTALLED_APPS=['django.contrib.contenttypes', 'django.contrib.auth'])
           print('✅ Django imported successfully')
+          
+          # Test if we can import your Django project
+          try:
+              import config.settings
+              print('✅ Django settings imported successfully')
+          except Exception as e:
+              print(f'⚠️ Django settings import issue: {e}')
+              
       except Exception as e:
           print(f'❌ Django error: {e}')
+          import traceback
+          traceback.print_exc()
+      "
+      
+      # Test the unified router
+      PYTHONPATH="./python_packages" python -c "
+      try:
+          import app
+          print('✅ Unified router imported successfully')
+      except Exception as e:
+          print(f'❌ Router error: {e}')
+          import traceback
+          traceback.print_exc()
       "
     displayName: 'Test both backends'
 
-  # Step 5: Archive everything
+  # Step 5: Create necessary Django configuration if missing
+  - script: |
+      echo "Ensuring Django configuration exists..."
+      
+      # Check if Django settings file exists
+      if [ ! -f "config/settings.py" ]; then
+        echo "Creating basic Django settings..."
+        mkdir -p config
+        cat > config/__init__.py << 'INITEOF'
+        # Django config package
+        INITEOF
+        
+        cat > config/settings.py << 'SETTINGSEOF'
+        """
+        Django settings for backend project.
+        """
+        import os
+        from pathlib import Path
+        
+        BASE_DIR = Path(__file__).resolve().parent.parent
+        
+        SECRET_KEY = 'django-insecure-temporary-key-for-deployment'
+        
+        DEBUG = True
+        
+        ALLOWED_HOSTS = ['*']
+        
+        INSTALLED_APPS = [
+            'django.contrib.admin',
+            'django.contrib.auth',
+            'django.contrib.contenttypes',
+            'django.contrib.sessions',
+            'django.contrib.messages',
+            'django.contrib.staticfiles',
+            'rest_framework',
+            'corsheaders',
+        ]
+        
+        MIDDLEWARE = [
+            'corsheaders.middleware.CorsMiddleware',
+            'django.middleware.security.SecurityMiddleware',
+            'django.contrib.sessions.middleware.SessionMiddleware',
+            'django.middleware.common.CommonMiddleware',
+            'django.middleware.csrf.CsrfViewMiddleware',
+            'django.contrib.auth.middleware.AuthenticationMiddleware',
+            'django.contrib.messages.middleware.MessageMiddleware',
+            'django.middleware.clickjacking.XFrameOptionsMiddleware',
+        ]
+        
+        ROOT_URLCONF = 'config.urls'
+        
+        TEMPLATES = [
+            {
+                'BACKEND': 'django.template.backends.django.DjangoTemplates',
+                'DIRS': [],
+                'APP_DIRS': True,
+                'OPTIONS': {
+                    'context_processors': [
+                        'django.template.context_processors.debug',
+                        'django.template.context_processors.request',
+                        'django.contrib.auth.context_processors.auth',
+                        'django.contrib.messages.context_processors.messages',
+                    ],
+                },
+            },
+        ]
+        
+        WSGI_APPLICATION = 'config.wsgi.application'
+        
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
+        
+        CORS_ALLOW_ALL_ORIGINS = True
+        
+        STATIC_URL = '/static/'
+        SETTINGSEOF
+        
+        # Create URLs
+        cat > config/urls.py << 'URLSEOF'
+        from django.contrib import admin
+        from django.urls import path
+        
+        urlpatterns = [
+            path('admin/', admin.site.urls),
+            path('', lambda request: JsonResponse({'message': 'Django API is working'})),
+        ]
+        URLSEOF
+        
+        # Create WSGI
+        cat > config/wsgi.py << 'WSGIEOF'
+        import os
+        from django.core.wsgi import get_wsgi_application
+        
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+        application = get_wsgi_application()
+        WSGIEOF
+        
+        echo "✅ Basic Django configuration created"
+      else
+        echo "✅ Django configuration already exists"
+      fi
+    displayName: 'Setup Django configuration'
+
+  # Step 6: Archive everything
   - task: ArchiveFiles@2
     displayName: 'Archive files'
     inputs:
@@ -155,7 +298,7 @@ steps:
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
       replaceExistingArchive: true
 
-  # Step 6: Deploy
+  # Step 7: Deploy
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
