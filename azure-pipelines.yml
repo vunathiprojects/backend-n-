@@ -6,130 +6,49 @@ trigger:
 variables:
   azureSubscription: 'novya-serviceconnection'
   appName: 'backend-n'
-  pythonVersion: '3.11'
 
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-  # Step 1: Set up Python
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(pythonVersion)'
-    displayName: 'Use Python $(pythonVersion)'
-
-  # Step 2: Create requirements.txt with ALL dependencies
+  # Step 1: Create proper requirements.txt in root (Azure looks for this)
   - script: |
-      echo "Creating comprehensive requirements.txt..."
+      echo "Creating requirements.txt for Azure Oryx build..."
       
-      # Start with essential packages
+      # Create requirements.txt that Azure will use to build the app
       cat > requirements.txt << 'EOF'
       fastapi==0.104.1
       uvicorn[standard]==0.24.0
       python-multipart==0.0.6
       anyio==4.2.0
       typing-extensions==4.8.0
+      pydantic==2.5.0
+      python-dotenv==1.0.0
+      openai==1.3.0
       EOF
       
-      # Add any existing requirements
+      # Add any other requirements from ai_backend
       if [ -f "ai_backend/requirements.txt" ]; then
         echo "" >> requirements.txt
-        cat ai_backend/requirements.txt >> requirements.txt
+        # Filter out duplicates
+        grep -v -E "^(fastapi|uvicorn|python-multipart|anyio|typing-extensions|pydantic|python-dotenv|openai)" ai_backend/requirements.txt >> requirements.txt
       fi
-      
-      # Remove any duplicates
-      sort requirements.txt | uniq > requirements_final.txt
-      mv requirements_final.txt requirements.txt
       
       echo "Final requirements.txt:"
       cat requirements.txt
     displayName: 'Create requirements.txt'
 
-  # Step 3: Install dependencies
+  # Step 2: Remove startup.sh and let Azure handle the startup
   - script: |
-      echo "Installing dependencies..."
-      pip install -r requirements.txt
-    displayName: 'Install dependencies'
+      echo "Cleaning up any existing startup scripts..."
+      # Remove any existing startup scripts to let Azure handle it
+      rm -f startup.sh
+    displayName: 'Cleanup startup scripts'
 
-  # Step 4: Create .env file to specify Python path
-  - script: |
-      echo "Creating environment configuration..."
-      
-      # Create .env file
-      cat > .env << 'EOF'
-      PYTHONPATH=/home/site/wwwroot:/home/site/wwwroot/ai_backend
-      WEBSITES_PORT=8000
-      SCM_DO_BUILD_DURING_DEPLOYMENT=true
-      EOF
-    displayName: 'Create environment config'
-
-  # Step 5: Create startup script that activates virtual environment
-  - script: |
-      echo "Creating startup script..."
-      
-      # Create startup.sh
-      cat > startup.sh << 'EOF'
-      #!/bin/bash
-      
-      echo "=== Checking Python environment ==="
-      which python
-      python --version
-      
-      echo "=== Checking if uvicorn is available ==="
-      python -c "import uvicorn; print('✅ uvicorn available')" || echo "❌ uvicorn not available"
-      
-      echo "=== Starting application ==="
-      cd ai_backend
-      
-      # Try to use the virtual environment if it exists
-      if [ -f "/home/site/wwwroot/antenv/bin/activate" ]; then
-          echo "Activating virtual environment..."
-          source /home/site/wwwroot/antenv/bin/activate
-      fi
-      
-      # Start the app
-      echo "Starting uvicorn..."
-      python -m uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
-      EOF
-      
-      chmod +x startup.sh
-      
-      echo "Startup script content:"
-      cat startup.sh
-    displayName: 'Create startup script'
-
-  # Step 6: Test the app can start
-  - script: |
-      echo "Testing application..."
-      cd ai_backend
-      python -c "
-      try:
-          from app import app
-          print('✅ App imports successfully')
-          # Test if we can start uvicorn
-          import uvicorn
-          print('✅ uvicorn imports successfully')
-      except Exception as e:
-          print(f'❌ Error: {e}')
-          import traceback
-          traceback.print_exc()
-      "
-    displayName: 'Test application'
-
-  # Step 7: Archive for deployment
-  - task: ArchiveFiles@2
-    displayName: 'Archive files'
-    inputs:
-      rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
-      includeRootFolder: false
-      archiveType: 'zip'
-      archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
-      replaceExistingArchive: true
-
-  # Step 8: Deploy
+  # Step 3: Deploy SOURCE CODE (not zip) - Let Azure build it
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
       azureSubscription: $(azureSubscription)
       appName: $(appName)
-      package: '$(Build.ArtifactStagingDirectory)/backend.zip'
+      package: '$(System.DefaultWorkingDirectory)'
