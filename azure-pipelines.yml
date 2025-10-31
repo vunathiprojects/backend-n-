@@ -11,11 +11,10 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-  # Step 1: Create proper requirements.txt in root (Azure looks for this)
+  # Step 1: Create requirements.txt with ALL dependencies including openai
   - script: |
-      echo "Creating requirements.txt for Azure Oryx build..."
+      echo "Creating comprehensive requirements.txt..."
       
-      # Create requirements.txt that Azure will use to build the app
       cat > requirements.txt << 'EOF'
       fastapi==0.104.1
       uvicorn[standard]==0.24.0
@@ -25,27 +24,36 @@ steps:
       pydantic==2.5.0
       python-dotenv==1.0.0
       openai==1.3.0
+      tiktoken==0.5.2
+      requests==2.31.0
+      httpx==0.25.2
       EOF
       
       # Add any other requirements from ai_backend
       if [ -f "ai_backend/requirements.txt" ]; then
         echo "" >> requirements.txt
-        # Filter out duplicates
-        grep -v -E "^(fastapi|uvicorn|python-multipart|anyio|typing-extensions|pydantic|python-dotenv|openai)" ai_backend/requirements.txt >> requirements.txt
+        grep -v -E "^(fastapi|uvicorn|python-multipart|anyio|typing-extensions|pydantic|python-dotenv|openai|tiktoken|requests|httpx)" ai_backend/requirements.txt >> requirements.txt
       fi
       
       echo "Final requirements.txt:"
       cat requirements.txt
     displayName: 'Create requirements.txt'
 
-  # Step 2: Remove startup.sh and let Azure handle the startup
+  # Step 2: Create startup command file to force FastAPI
   - script: |
-      echo "Cleaning up any existing startup scripts..."
-      # Remove any existing startup scripts to let Azure handle it
-      rm -f startup.sh
-    displayName: 'Cleanup startup scripts'
+      echo "Creating startup configuration..."
+      
+      # Create startup command file
+      echo "cd ai_backend && python -m uvicorn app:app --host 0.0.0.0 --port 8000" > startup.txt
+      
+      # Create .env file
+      cat > .env << 'EOF'
+      WEBSITES_PORT=8000
+      SCM_DO_BUILD_DURING_DEPLOYMENT=true
+      EOF
+    displayName: 'Create startup config'
 
-  # Step 3: Deploy SOURCE CODE (not zip) - Let Azure build it
+  # Step 3: Deploy source code
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
