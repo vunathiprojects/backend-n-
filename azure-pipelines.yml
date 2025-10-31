@@ -31,13 +31,27 @@ steps:
       pip install -r requirements.txt
     displayName: 'Install FastAPI requirements'
 
-  # Step 4: Verify uvicorn installation
+  # Step 4: Verify installations
   - script: |
-      echo "Verifying uvicorn installation..."
+      echo "Verifying installations..."
       python -c "import uvicorn; print('✅ uvicorn installed successfully')"
-    displayName: 'Verify FastAPI installation'
+      cd ai_backend
+      python -c "from main import app; print('✅ FastAPI app imported successfully')"
+    displayName: 'Verify installations'
 
-  # Step 5: Archive everything
+  # Step 5: Create proper startup script
+  - script: |
+      echo "Creating startup script..."
+      cat > startup.sh << 'EOF'
+      #!/bin/bash
+      echo "Starting FastAPI application..."
+      cd ai_backend
+      uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4
+      EOF
+      chmod +x startup.sh
+    displayName: 'Create startup script'
+
+  # Step 6: Archive everything
   - task: ArchiveFiles@2
     displayName: 'Archive files for deployment'
     inputs:
@@ -47,7 +61,7 @@ steps:
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
       replaceExistingArchive: true
 
-  # Step 6: Deploy to Azure Web App
+  # Step 7: Deploy to Azure Web App
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
