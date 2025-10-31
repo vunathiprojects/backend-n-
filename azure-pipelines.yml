@@ -59,74 +59,77 @@ steps:
   - script: |
       echo "Creating unified router for both backends..."
       
-      # Create the main router application
-      cat > app.py << 'ROUTER_EOF'
+      # Create the main router application using Python directly
+      python -c "
+      router_code = '''
       from fastapi import FastAPI
       from fastapi.middleware.wsgi import WSGIMiddleware
       import os
       import sys
-      
+
       # Add packages to path
       packages_path = os.path.join(os.path.dirname(__file__), 'python_packages')
       if packages_path not in sys.path:
           sys.path.insert(0, packages_path)
-      
-      app = FastAPI(title="Backend API")
-      
+
+      app = FastAPI(title=\"Backend API\")
+
       # Try to mount Django if available
       try:
           # Setup Django
           os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
           from django.core.wsgi import get_wsgi_application
           django_app = get_wsgi_application()
-          app.mount("/api", WSGIMiddleware(django_app))
-          print("✅ Django mounted at /api")
+          app.mount(\"/api\", WSGIMiddleware(django_app))
+          print(\"✅ Django mounted at /api\")
       except Exception as e:
-          print(f"❌ Django not available: {e}")
-      
+          print(f\"❌ Django not available: {e}\")
+
       # Try to mount FastAPI if available
       try:
           from ai_backend.app import app as fastapi_app
-          app.mount("/ai", fastapi_app)
-          print("✅ FastAPI mounted at /ai")
+          app.mount(\"/ai\", fastapi_app)
+          print(\"✅ FastAPI mounted at /ai\")
       except Exception as e:
-          print(f"❌ FastAPI not available: {e}")
-      
-      @app.get("/")
+          print(f\"❌ FastAPI not available: {e}\")
+
+      @app.get(\"/\")
       def root():
           return {
-              "message": "Backend API is running", 
-              "services": {
-                  "django": "/api/",
-                  "fastapi": "/ai/"
+              \"message\": \"Backend API is running\", 
+              \"services\": {
+                  \"django\": \"/api/\",
+                  \"fastapi\": \"/ai/\"
               }
           }
-      
-      if __name__ == "__main__":
+
+      if __name__ == \"__main__\":
           import uvicorn
-          uvicorn.run(app, host="0.0.0.0", port=8000)
-      ROUTER_EOF
+          uvicorn.run(app, host=\"0.0.0.0\", port=8000)
+      '''
       
-      # Create startup script that uses the router
-      cat > startup.sh << 'STARTUP_EOF'
-      #!/bin/bash
+      with open('app.py', 'w') as f:
+          f.write(router_code)
+      "
       
-      # Add local packages to Python path
-      export PYTHONPATH="/home/site/wwwroot/python_packages:$PYTHONPATH"
-      export PORT=8000
-      
-      echo "=== Starting Unified Backend ==="
-      echo "Python path: $PYTHONPATH"
-      echo "Current directory: $(pwd)"
-      
-      # Check if packages are available
-      python3 -c "import sys; print('Python path:', sys.path)"
-      python3 -c "import uvicorn; print('✅ uvicorn available')" || echo "❌ uvicorn not available"
-      python3 -c "import django; print('✅ django available')" || echo "❌ django not available"
-      
-      echo "Starting unified router..."
-      python3 app.py
-      STARTUP_EOF
+      # Create startup script
+      echo '#!/bin/bash' > startup.sh
+      echo '' >> startup.sh
+      echo '# Add local packages to Python path' >> startup.sh
+      echo 'export PYTHONPATH="/home/site/wwwroot/python_packages:$PYTHONPATH"' >> startup.sh
+      echo 'export PORT=8000' >> startup.sh
+      echo '' >> startup.sh
+      echo 'echo "=== Starting Unified Backend ==="' >> startup.sh
+      echo 'echo "Python path: $PYTHONPATH"' >> startup.sh
+      echo 'echo "Current directory: $(pwd)"' >> startup.sh
+      echo '' >> startup.sh
+      echo '# Check if packages are available' >> startup.sh
+      echo 'python3 -c "import sys; print(\"Python path:\", sys.path)"' >> startup.sh
+      echo 'python3 -c "import uvicorn; print(\"✅ uvicorn available\")" || echo "❌ uvicorn not available"' >> startup.sh
+      echo 'python3 -c "import django; print(\"✅ django available\")" || echo "❌ django not available"' >> startup.sh
+      echo '' >> startup.sh
+      echo 'echo "Starting unified router..."' >> startup.sh
+      echo 'python3 app.py' >> startup.sh
       
       chmod +x startup.sh
       echo "Unified router created"
@@ -181,96 +184,89 @@ steps:
       "
     displayName: 'Test both backends'
 
-  # Step 5: SIMPLIFIED Django configuration setup
+  # Step 5: SIMPLE Django configuration setup - REMOVED COMPLEX HEREDOCS
   - script: |
       echo "Checking Django configuration..."
       
-      # Check if Django config exists, if not create basic one
-      if [ ! -f "config/settings.py" ]; then
-        echo "Creating basic Django configuration..."
-        
-        # Create config directory
-        mkdir -p config
-        
-        # Create __init__.py
-        echo "# Django config package" > config/__init__.py
-        
-        # Create basic settings.py using echo commands
-        echo "Creating settings.py..."
-        cat > config/settings.py << 'SETTINGS_EOF'
-        import os
-        from pathlib import Path
-        
-        BASE_DIR = Path(__file__).resolve().parent.parent
-        
-        SECRET_KEY = 'django-insecure-temporary-key-for-deployment'
-        DEBUG = True
-        ALLOWED_HOSTS = ['*']
-        
-        INSTALLED_APPS = [
-            'django.contrib.admin',
-            'django.contrib.auth',
-            'django.contrib.contenttypes',
-            'django.contrib.sessions',
-            'django.contrib.messages',
-            'django.contrib.staticfiles',
-            'rest_framework',
-            'corsheaders',
-        ]
-        
-        MIDDLEWARE = [
-            'corsheaders.middleware.CorsMiddleware',
-            'django.middleware.security.SecurityMiddleware',
-            'django.contrib.sessions.middleware.SessionMiddleware',
-            'django.middleware.common.CommonMiddleware',
-            'django.middleware.csrf.CsrfViewMiddleware',
-            'django.contrib.auth.middleware.AuthenticationMiddleware',
-            'django.contrib.messages.middleware.MessageMiddleware',
-            'django.middleware.clickjacking.XFrameOptionsMiddleware',
-        ]
-        
-        ROOT_URLCONF = 'config.urls'
-        WSGI_APPLICATION = 'config.wsgi.application'
-        
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
-            }
-        }
-        
-        CORS_ALLOW_ALL_ORIGINS = True
-        STATIC_URL = '/static/'
-        SETTINGS_EOF
-        
-        # Create urls.py
-        cat > config/urls.py << 'URLS_EOF'
-        from django.contrib import admin
-        from django.urls import path
-        from django.http import JsonResponse
-        
-        def home(request):
-            return JsonResponse({'message': 'Django API is working'})
-        
-        urlpatterns = [
-            path('admin/', admin.site.urls),
-            path('', home),
-        ]
-        URLS_EOF
-        
-        # Create wsgi.py
-        cat > config/wsgi.py << 'WSGI_EOF'
-        import os
-        from django.core.wsgi import get_wsgi_application
-        
-        os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
-        application = get_wsgi_application()
-        WSGI_EOF
-        
-        echo "✅ Basic Django configuration created"
-      else
+      # Check if Django config exists
+      if [ -f "config/settings.py" ]; then
         echo "✅ Django configuration already exists"
+        exit 0
       fi
+      
+      echo "Creating basic Django configuration..."
+      
+      # Create config directory
+      mkdir -p config
+      
+      # Create __init__.py
+      echo "# Django config package" > config/__init__.py
+      
+      # Create settings.py using echo commands (no heredoc)
+      echo "import os" > config/settings.py
+      echo "from pathlib import Path" >> config/settings.py
+      echo "" >> config/settings.py
+      echo "BASE_DIR = Path(__file__).resolve().parent.parent" >> config/settings.py
+      echo "SECRET_KEY = 'django-insecure-temporary-key-for-deployment'" >> config/settings.py
+      echo "DEBUG = True" >> config/settings.py
+      echo "ALLOWED_HOSTS = ['*']" >> config/settings.py
+      echo "" >> config/settings.py
+      echo "INSTALLED_APPS = [" >> config/settings.py
+      echo "    'django.contrib.admin'," >> config/settings.py
+      echo "    'django.contrib.auth'," >> config/settings.py
+      echo "    'django.contrib.contenttypes'," >> config/settings.py
+      echo "    'django.contrib.sessions'," >> config/settings.py
+      echo "    'django.contrib.messages'," >> config/settings.py
+      echo "    'django.contrib.staticfiles'," >> config/settings.py
+      echo "    'rest_framework'," >> config/settings.py
+      echo "    'corsheaders'," >> config/settings.py
+      echo "]" >> config/settings.py
+      echo "" >> config/settings.py
+      echo "MIDDLEWARE = [" >> config/settings.py
+      echo "    'corsheaders.middleware.CorsMiddleware'," >> config/settings.py
+      echo "    'django.middleware.security.SecurityMiddleware'," >> config/settings.py
+      echo "    'django.contrib.sessions.middleware.SessionMiddleware'," >> config/settings.py
+      echo "    'django.middleware.common.CommonMiddleware'," >> config/settings.py
+      echo "    'django.middleware.csrf.CsrfViewMiddleware'," >> config/settings.py
+      echo "    'django.contrib.auth.middleware.AuthenticationMiddleware'," >> config/settings.py
+      echo "    'django.contrib.messages.middleware.MessageMiddleware'," >> config/settings.py
+      echo "    'django.middleware.clickjacking.XFrameOptionsMiddleware'," >> config/settings.py
+      echo "]" >> config/settings.py
+      echo "" >> config/settings.py
+      echo "ROOT_URLCONF = 'config.urls'" >> config/settings.py
+      echo "WSGI_APPLICATION = 'config.wsgi.application'" >> config/settings.py
+      echo "" >> config/settings.py
+      echo "DATABASES = {" >> config/settings.py
+      echo "    'default': {" >> config/settings.py
+      echo "        'ENGINE': 'django.db.backends.sqlite3'," >> config/settings.py
+      echo "        'NAME': BASE_DIR / 'db.sqlite3'," >> config/settings.py
+      echo "    }" >> config/settings.py
+      echo "}" >> config/settings.py
+      echo "" >> config/settings.py
+      echo "CORS_ALLOW_ALL_ORIGINS = True" >> config/settings.py
+      echo "STATIC_URL = '/static/'" >> config/settings.py
+      
+      # Create urls.py
+      echo "from django.contrib import admin" > config/urls.py
+      echo "from django.urls import path" >> config/urls.py
+      echo "from django.http import JsonResponse" >> config/urls.py
+      echo "" >> config/urls.py
+      echo "def home(request):" >> config/urls.py
+      echo "    return JsonResponse({'message': 'Django API is working'})" >> config/urls.py
+      echo "" >> config/urls.py
+      echo "urlpatterns = [" >> config/urls.py
+      echo "    path('admin/', admin.site.urls)," >> config/urls.py
+      echo "    path('', home)," >> config/urls.py
+      echo "]" >> config/urls.py
+      
+      # Create wsgi.py
+      echo "import os" > config/wsgi.py
+      echo "from django.core.wsgi import get_wsgi_application" >> config/wsgi.py
+      echo "" >> config/wsgi.py
+      echo "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')" >> config/wsgi.py
+      echo "application = get_wsgi_application()" >> config/wsgi.py
+      
+      echo "✅ Basic Django configuration created"
     displayName: 'Setup Django configuration'
 
   # Step 6: Archive everything
