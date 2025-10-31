@@ -6,13 +6,23 @@ trigger:
 variables:
   azureSubscription: 'novya-serviceconnection'
   appName: 'backend-n'
+  pythonVersion: '3.11'
+
+pool:
+  vmImage: 'ubuntu-latest'
 
 steps:
-  # Step 1: Only create requirements.txt - nothing else!
+  # Step 1: Set up Python
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(pythonVersion)'
+    displayName: 'Use Python $(pythonVersion)'
+
+  # Step 2: Install ALL dependencies to a local directory
   - script: |
-      echo "Setting up for Azure Oryx build..."
+      echo "Installing dependencies to local packages directory..."
       
-      # Create requirements.txt in root - this triggers Azure build
+      # Create requirements.txt
       cat > requirements.txt << 'EOF'
       fastapi==0.104.1
       uvicorn[standard]==0.24.0
@@ -21,15 +31,74 @@ steps:
       python-dotenv==1.0.0
       anyio==3.7.1
       typing-extensions==4.8.0
+      pydantic==2.5.0
+      tiktoken==0.5.2
+      requests==2.31.0
+      httpx==0.25.2
       EOF
       
-      echo "requirements.txt created for Azure build"
-    displayName: 'Create requirements.txt'
+      # Install to local packages directory
+      pip install --target="./python_packages" -r requirements.txt
+      
+      echo "✅ Dependencies installed to python_packages/"
+    displayName: 'Install dependencies locally'
 
-  # Step 2: Deploy SOURCE CODE (not zip) - this is crucial!
+  # Step 3: Create startup script that uses local packages
+  - script: |
+      echo "Creating startup script..."
+      
+      cat > startup.sh << 'EOF'
+      #!/bin/bash
+      
+      # Add local packages to Python path
+      export PYTHONPATH="/home/site/wwwroot/python_packages:$PYTHONPATH"
+      export PORT=8000
+      
+      echo "=== Starting FastAPI Application ==="
+      echo "Python path: $PYTHONPATH"
+      echo "Current directory: $(pwd)"
+      
+      # Check if packages are available
+      python3 -c "import sys; print('Python path:', sys.path)"
+      python3 -c "import uvicorn; print('✅ uvicorn available')" || echo "❌ uvicorn not available"
+      
+      cd ai_backend
+      echo "Starting uvicorn..."
+      python3 -m uvicorn app:app --host 0.0.0.0 --port $PORT
+      EOF
+      
+      chmod +x startup.sh
+      echo "Startup script created"
+    displayName: 'Create startup script'
+
+  # Step 4: Test the application locally
+  - script: |
+      echo "Testing application with local packages..."
+      PYTHONPATH="./python_packages" python -c "
+      try:
+          from ai_backend.app import app
+          print('✅ App imported successfully with local packages')
+      except Exception as e:
+          print(f'❌ Error: {e}')
+          import traceback
+          traceback.print_exc()
+      "
+    displayName: 'Test application'
+
+  # Step 5: Archive everything including python_packages
+  - task: ArchiveFiles@2
+    displayName: 'Archive files'
+    inputs:
+      rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
+      includeRootFolder: false
+      archiveType: 'zip'
+      archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
+      replaceExistingArchive: true
+
+  # Step 6: Deploy
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
       azureSubscription: $(azureSubscription)
       appName: $(appName)
-      package: '$(System.DefaultWorkingDirectory)'
+      package: '$(Build.ArtifactStagingDirectory)/backend.zip'
