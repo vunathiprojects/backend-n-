@@ -60,7 +60,7 @@ steps:
       echo "Creating unified router for both backends..."
       
       # Create the main router application
-      cat > app.py << 'EOF'
+      cat > app.py << 'ROUTER_EOF'
       from fastapi import FastAPI
       from fastapi.middleware.wsgi import WSGIMiddleware
       import os
@@ -105,10 +105,10 @@ steps:
       if __name__ == "__main__":
           import uvicorn
           uvicorn.run(app, host="0.0.0.0", port=8000)
-      EOF
+      ROUTER_EOF
       
       # Create startup script that uses the router
-      cat > startup.sh << 'EOF'
+      cat > startup.sh << 'STARTUP_EOF'
       #!/bin/bash
       
       # Add local packages to Python path
@@ -126,7 +126,7 @@ steps:
       
       echo "Starting unified router..."
       python3 app.py
-      EOF
+      STARTUP_EOF
       
       chmod +x startup.sh
       echo "Unified router created"
@@ -181,31 +181,30 @@ steps:
       "
     displayName: 'Test both backends'
 
-  # Step 5: Create necessary Django configuration if missing
+  # Step 5: SIMPLIFIED Django configuration setup
   - script: |
-      echo "Ensuring Django configuration exists..."
+      echo "Checking Django configuration..."
       
-      # Check if Django settings file exists
+      # Check if Django config exists, if not create basic one
       if [ ! -f "config/settings.py" ]; then
-        echo "Creating basic Django settings..."
-        mkdir -p config
-        cat > config/__init__.py << 'INITEOF'
-        # Django config package
-        INITEOF
+        echo "Creating basic Django configuration..."
         
-        cat > config/settings.py << 'SETTINGSEOF'
-        """
-        Django settings for backend project.
-        """
+        # Create config directory
+        mkdir -p config
+        
+        # Create __init__.py
+        echo "# Django config package" > config/__init__.py
+        
+        # Create basic settings.py using echo commands
+        echo "Creating settings.py..."
+        cat > config/settings.py << 'SETTINGS_EOF'
         import os
         from pathlib import Path
         
         BASE_DIR = Path(__file__).resolve().parent.parent
         
         SECRET_KEY = 'django-insecure-temporary-key-for-deployment'
-        
         DEBUG = True
-        
         ALLOWED_HOSTS = ['*']
         
         INSTALLED_APPS = [
@@ -231,23 +230,6 @@ steps:
         ]
         
         ROOT_URLCONF = 'config.urls'
-        
-        TEMPLATES = [
-            {
-                'BACKEND': 'django.template.backends.django.DjangoTemplates',
-                'DIRS': [],
-                'APP_DIRS': True,
-                'OPTIONS': {
-                    'context_processors': [
-                        'django.template.context_processors.debug',
-                        'django.template.context_processors.request',
-                        'django.contrib.auth.context_processors.auth',
-                        'django.contrib.messages.context_processors.messages',
-                    ],
-                },
-            },
-        ]
-        
         WSGI_APPLICATION = 'config.wsgi.application'
         
         DATABASES = {
@@ -258,29 +240,32 @@ steps:
         }
         
         CORS_ALLOW_ALL_ORIGINS = True
-        
         STATIC_URL = '/static/'
-        SETTINGSEOF
+        SETTINGS_EOF
         
-        # Create URLs
-        cat > config/urls.py << 'URLSEOF'
+        # Create urls.py
+        cat > config/urls.py << 'URLS_EOF'
         from django.contrib import admin
         from django.urls import path
+        from django.http import JsonResponse
+        
+        def home(request):
+            return JsonResponse({'message': 'Django API is working'})
         
         urlpatterns = [
             path('admin/', admin.site.urls),
-            path('', lambda request: JsonResponse({'message': 'Django API is working'})),
+            path('', home),
         ]
-        URLSEOF
+        URLS_EOF
         
-        # Create WSGI
-        cat > config/wsgi.py << 'WSGIEOF'
+        # Create wsgi.py
+        cat > config/wsgi.py << 'WSGI_EOF'
         import os
         from django.core.wsgi import get_wsgi_application
         
         os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
         application = get_wsgi_application()
-        WSGIEOF
+        WSGI_EOF
         
         echo "✅ Basic Django configuration created"
       else
