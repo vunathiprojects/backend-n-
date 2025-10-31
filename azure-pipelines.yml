@@ -18,70 +18,58 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
-  # Step 2: Debug - Show directory structure
+  # Step 2: Install all dependencies in the correct location
   - script: |
-      echo "Current directory structure:"
-      ls -la
-      echo "--- ai_backend contents:"
-      ls -la ai_backend/
-      echo "--- Checking app.py exists:"
-      if [ -f "ai_backend/app.py" ]; then
-        echo "✅ ai_backend/app.py exists"
-      else
-        echo "❌ ai_backend/app.py not found"
-      fi
-    displayName: 'Debug directory structure'
-
-  # Step 3: Install Django backend dependencies (root)
-  - script: |
-      echo "Installing Django backend dependencies..."
-      pip install -r requirements.txt
-    displayName: 'Install Django requirements'
-
-  # Step 4: Install FastAPI backend dependencies (ai_backend)
-  - script: |
-      echo "Installing FastAPI backend dependencies..."
-      cd ai_backend
-      pip install -r requirements.txt
-    displayName: 'Install FastAPI requirements'
-
-  # Step 5: Enhanced verification for app.py
-  - script: |
-      echo "Enhanced verification for app.py..."
-      python -c "import uvicorn; print('✅ uvicorn installed successfully')"
+      echo "Installing all dependencies..."
       
-      # Check if we can import the FastAPI app from app.py
+      # Install root dependencies
+      pip install -r requirements.txt
+      
+      # Install ai_backend dependencies
       cd ai_backend
-      python -c "
-      try:
-          from app import app
-          print('✅ FastAPI app imported successfully from app.py')
-          print(f'App title: {app.title if hasattr(app, \"title\") else \"No title\"}')
-      except Exception as e:
-          print(f'❌ Error importing FastAPI app from app.py: {e}')
-          import traceback
-          traceback.print_exc()
-      "
-    displayName: 'Verify FastAPI app from app.py'
+      pip install -r requirements.txt
+      cd ..
+      
+      # Explicitly install uvicorn and fastapi
+      pip install uvicorn[standard] fastapi
+      
+      # Create a requirements.txt with all installed packages
+      pip freeze > deployed_requirements.txt
+    displayName: 'Install all dependencies'
 
-  # Step 6: Create proper startup script for app.py
+  # Step 3: Verify installations
   - script: |
-      echo "Creating startup script for app.py..."
+      echo "Verifying installations..."
+      python -c "import uvicorn, fastapi; print('✅ All imports successful')"
+      pip list | grep -E "(uvicorn|fastapi)"
+    displayName: 'Verify installations'
+
+  # Step 4: Create startup script that uses direct Python command
+  - script: |
+      echo "Creating startup script..."
       
       # Create startup.sh
       cat > startup.sh << 'EOF'
       #!/bin/bash
-      echo "Starting FastAPI application from app.py..."
+      echo "Starting FastAPI application..."
       cd ai_backend
-      uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 4
+      python -m uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
       EOF
       chmod +x startup.sh
       
       echo "Startup script content:"
       cat startup.sh
-    displayName: 'Create startup script for app.py'
+    displayName: 'Create startup script'
 
-  # Step 7: Archive everything
+  # Step 5: Create requirements.txt in root with ALL dependencies
+  - script: |
+      echo "Creating comprehensive requirements.txt..."
+      pip freeze > requirements.txt
+      echo "Final requirements.txt:"
+      head -20 requirements.txt
+    displayName: 'Create comprehensive requirements'
+
+  # Step 6: Archive everything including dependencies
   - task: ArchiveFiles@2
     displayName: 'Archive files for deployment'
     inputs:
@@ -91,7 +79,7 @@ steps:
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
       replaceExistingArchive: true
 
-  # Step 8: Deploy to Azure Web App
+  # Step 7: Deploy to Azure Web App
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
