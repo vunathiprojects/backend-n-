@@ -6,7 +6,7 @@ trigger:
 variables:
   azureSubscription: 'novya-serviceconnection'
   appName: 'backend-n'
-  pythonVersion: '3.11'  # Match Azure's Python version
+  pythonVersion: '3.11'
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -18,15 +18,15 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
-  # Step 2: Create requirements.txt in root
+  # Step 2: Create requirements.txt with COMPATIBLE versions
   - script: |
-      echo "Creating requirements.txt..."
+      echo "Creating requirements.txt with compatible versions..."
       
       cat > requirements.txt << 'EOF'
       fastapi==0.104.1
       uvicorn[standard]==0.24.0
       python-multipart==0.0.6
-      anyio==4.2.0
+      anyio==3.7.1
       typing-extensions==4.8.0
       pydantic==2.5.0
       python-dotenv==1.0.0
@@ -36,20 +36,21 @@ steps:
       httpx==0.25.2
       EOF
       
-      echo "Requirements.txt created"
+      echo "Requirements.txt created with compatible versions"
       cat requirements.txt
     displayName: 'Create requirements.txt'
 
-  # Step 3: Install dependencies (this helps Azure detect Python app)
+  # Step 3: Install dependencies
   - script: |
       echo "Installing dependencies..."
+      pip install --upgrade pip
       pip install -r requirements.txt
       
-      # Verify
-      python -c "import uvicorn, fastapi, openai; print('✅ All dependencies installed')"
+      # Verify installations
+      python -c "import uvicorn, fastapi, openai; print('✅ All dependencies installed successfully')"
     displayName: 'Install dependencies'
 
-  # Step 4: Deploy SOURCE CODE (not zip) to let Azure build
+  # Step 4: Deploy SOURCE CODE to let Azure build
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
