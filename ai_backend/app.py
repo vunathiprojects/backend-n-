@@ -1492,6 +1492,31 @@ async def chat_endpoint(request: ChatRequest):
 # -------------------------------
 # Quick Practice Endpoints
 # -------------------------------
+from fastapi.responses import JSONResponse
+
+# Quick Practice Root Endpoint
+@app.get("/ai/quick-practice")
+def quick_practice():
+    return JSONResponse(
+        content={
+            "message": "Quick Practice endpoint is working!",
+            "status": "success",
+            "data": {
+                "available_classes": ["7th", "8th", "9th", "10th"],
+                "subjects": [
+                    "Computers",
+                    "English",
+                    "Mathematics",
+                    "Science",
+                    "History",
+                    "Geography",
+                    "Civics",
+                    "Economics"
+                ]
+            }
+        }
+    )
+
 @app.get("/classes")
 def get_classes():
     logger.info("Fetching available classes")
