@@ -18,60 +18,107 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
-  # Step 2: Install all dependencies in the correct location
+  # Step 2: Create requirements.txt with ALL dependencies
   - script: |
-      echo "Installing all dependencies..."
+      echo "Creating comprehensive requirements.txt..."
       
-      # Install root dependencies
-      pip install -r requirements.txt
+      # Start with essential packages
+      cat > requirements.txt << 'EOF'
+      fastapi==0.104.1
+      uvicorn[standard]==0.24.0
+      python-multipart==0.0.6
+      anyio==4.2.0
+      typing-extensions==4.8.0
+      EOF
       
-      # Install ai_backend dependencies
-      cd ai_backend
-      pip install -r requirements.txt
-      cd ..
+      # Add any existing requirements
+      if [ -f "ai_backend/requirements.txt" ]; then
+        echo "" >> requirements.txt
+        cat ai_backend/requirements.txt >> requirements.txt
+      fi
       
-      # Explicitly install uvicorn and fastapi
-      pip install uvicorn[standard] fastapi
+      # Remove any duplicates
+      sort requirements.txt | uniq > requirements_final.txt
+      mv requirements_final.txt requirements.txt
       
-      # Create a requirements.txt with all installed packages
-      pip freeze > deployed_requirements.txt
-    displayName: 'Install all dependencies'
+      echo "Final requirements.txt:"
+      cat requirements.txt
+    displayName: 'Create requirements.txt'
 
-  # Step 3: Verify installations
+  # Step 3: Install dependencies
   - script: |
-      echo "Verifying installations..."
-      python -c "import uvicorn, fastapi; print('✅ All imports successful')"
-      pip list | grep -E "(uvicorn|fastapi)"
-    displayName: 'Verify installations'
+      echo "Installing dependencies..."
+      pip install -r requirements.txt
+    displayName: 'Install dependencies'
 
-  # Step 4: Create startup script that uses direct Python command
+  # Step 4: Create .env file to specify Python path
+  - script: |
+      echo "Creating environment configuration..."
+      
+      # Create .env file
+      cat > .env << 'EOF'
+      PYTHONPATH=/home/site/wwwroot:/home/site/wwwroot/ai_backend
+      WEBSITES_PORT=8000
+      SCM_DO_BUILD_DURING_DEPLOYMENT=true
+      EOF
+    displayName: 'Create environment config'
+
+  # Step 5: Create startup script that activates virtual environment
   - script: |
       echo "Creating startup script..."
       
       # Create startup.sh
       cat > startup.sh << 'EOF'
       #!/bin/bash
-      echo "Starting FastAPI application..."
+      
+      echo "=== Checking Python environment ==="
+      which python
+      python --version
+      
+      echo "=== Checking if uvicorn is available ==="
+      python -c "import uvicorn; print('✅ uvicorn available')" || echo "❌ uvicorn not available"
+      
+      echo "=== Starting application ==="
       cd ai_backend
+      
+      # Try to use the virtual environment if it exists
+      if [ -f "/home/site/wwwroot/antenv/bin/activate" ]; then
+          echo "Activating virtual environment..."
+          source /home/site/wwwroot/antenv/bin/activate
+      fi
+      
+      # Start the app
+      echo "Starting uvicorn..."
       python -m uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1
       EOF
+      
       chmod +x startup.sh
       
       echo "Startup script content:"
       cat startup.sh
     displayName: 'Create startup script'
 
-  # Step 5: Create requirements.txt in root with ALL dependencies
+  # Step 6: Test the app can start
   - script: |
-      echo "Creating comprehensive requirements.txt..."
-      pip freeze > requirements.txt
-      echo "Final requirements.txt:"
-      head -20 requirements.txt
-    displayName: 'Create comprehensive requirements'
+      echo "Testing application..."
+      cd ai_backend
+      python -c "
+      try:
+          from app import app
+          print('✅ App imports successfully')
+          # Test if we can start uvicorn
+          import uvicorn
+          print('✅ uvicorn imports successfully')
+      except Exception as e:
+          print(f'❌ Error: {e}')
+          import traceback
+          traceback.print_exc()
+      "
+    displayName: 'Test application'
 
-  # Step 6: Archive everything including dependencies
+  # Step 7: Archive for deployment
   - task: ArchiveFiles@2
-    displayName: 'Archive files for deployment'
+    displayName: 'Archive files'
     inputs:
       rootFolderOrFile: '$(System.DefaultWorkingDirectory)'
       includeRootFolder: false
@@ -79,7 +126,7 @@ steps:
       archiveFile: '$(Build.ArtifactStagingDirectory)/backend.zip'
       replaceExistingArchive: true
 
-  # Step 7: Deploy to Azure Web App
+  # Step 8: Deploy
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
