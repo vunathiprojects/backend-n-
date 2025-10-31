@@ -6,14 +6,21 @@ trigger:
 variables:
   azureSubscription: 'novya-serviceconnection'
   appName: 'backend-n'
+  pythonVersion: '3.11'  # Match Azure's Python version
 
 pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-  # Step 1: Create requirements.txt with ALL dependencies including openai
+  # Step 1: Set up Python 3.11
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '$(pythonVersion)'
+    displayName: 'Use Python $(pythonVersion)'
+
+  # Step 2: Create requirements.txt in root
   - script: |
-      echo "Creating comprehensive requirements.txt..."
+      echo "Creating requirements.txt..."
       
       cat > requirements.txt << 'EOF'
       fastapi==0.104.1
@@ -29,31 +36,20 @@ steps:
       httpx==0.25.2
       EOF
       
-      # Add any other requirements from ai_backend
-      if [ -f "ai_backend/requirements.txt" ]; then
-        echo "" >> requirements.txt
-        grep -v -E "^(fastapi|uvicorn|python-multipart|anyio|typing-extensions|pydantic|python-dotenv|openai|tiktoken|requests|httpx)" ai_backend/requirements.txt >> requirements.txt
-      fi
-      
-      echo "Final requirements.txt:"
+      echo "Requirements.txt created"
       cat requirements.txt
     displayName: 'Create requirements.txt'
 
-  # Step 2: Create startup command file to force FastAPI
+  # Step 3: Install dependencies (this helps Azure detect Python app)
   - script: |
-      echo "Creating startup configuration..."
+      echo "Installing dependencies..."
+      pip install -r requirements.txt
       
-      # Create startup command file
-      echo "cd ai_backend && python -m uvicorn app:app --host 0.0.0.0 --port 8000" > startup.txt
-      
-      # Create .env file
-      cat > .env << 'EOF'
-      WEBSITES_PORT=8000
-      SCM_DO_BUILD_DURING_DEPLOYMENT=true
-      EOF
-    displayName: 'Create startup config'
+      # Verify
+      python -c "import uvicorn, fastapi, openai; print('✅ All dependencies installed')"
+    displayName: 'Install dependencies'
 
-  # Step 3: Deploy source code
+  # Step 4: Deploy SOURCE CODE (not zip) to let Azure build
   - task: AzureWebApp@1
     displayName: 'Deploy to Azure Web App'
     inputs:
