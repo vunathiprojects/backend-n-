@@ -18,21 +18,33 @@ steps:
       versionSpec: '$(pythonVersion)'
     displayName: 'Use Python $(pythonVersion)'
 
-  # Step 2: Install ALL dependencies to a local directory
+  # Step 2: Install ALL dependencies for both backends
   - script: |
-      echo "Installing dependencies to local packages directory..."
+      echo "Installing dependencies for both Django and FastAPI..."
       
-      # Create requirements.txt
+      # Create comprehensive requirements.txt
       cat > requirements.txt << 'EOF'
+      # Django dependencies
+      django==4.2.7
+      djangorestframework==3.14.0
+      django-cors-headers==4.3.1
+      psycopg2-binary==2.9.7
+      gunicorn==21.2.0
+      
+      # FastAPI dependencies
       fastapi==0.104.1
       uvicorn[standard]==0.24.0
       python-multipart==0.0.6
+      
+      # AI/OpenAI dependencies
       openai==1.3.0
       python-dotenv==1.0.0
+      tiktoken==0.5.2
+      
+      # Common dependencies
       anyio==3.7.1
       typing-extensions==4.8.0
       pydantic==2.5.0
-      tiktoken==0.5.2
       requests==2.31.0
       httpx==0.25.2
       EOF
@@ -40,12 +52,12 @@ steps:
       # Install to local packages directory
       pip install --target="./python_packages" -r requirements.txt
       
-      echo "✅ Dependencies installed to python_packages/"
-    displayName: 'Install dependencies locally'
+      echo "✅ All dependencies installed"
+    displayName: 'Install all dependencies'
 
-  # Step 3: Create startup script that uses local packages
+  # Step 3: Create startup script that handles both backends
   - script: |
-      echo "Creating startup script..."
+      echo "Creating startup script for both backends..."
       
       cat > startup.sh << 'EOF'
       #!/bin/bash
@@ -54,38 +66,86 @@ steps:
       export PYTHONPATH="/home/site/wwwroot/python_packages:$PYTHONPATH"
       export PORT=8000
       
-      echo "=== Starting FastAPI Application ==="
+      echo "=== Starting Application ==="
       echo "Python path: $PYTHONPATH"
-      echo "Current directory: $(pwd)"
       
-      # Check if packages are available
-      python3 -c "import sys; print('Python path:', sys.path)"
-      python3 -c "import uvicorn; print('✅ uvicorn available')" || echo "❌ uvicorn not available"
-      
-      cd ai_backend
-      echo "Starting uvicorn..."
-      python3 -m uvicorn app:app --host 0.0.0.0 --port $PORT
+      # Check what type of request this is
+      if [[ "$PATH_INFO" == /ai/* ]] || [[ "$REQUEST_URI" == /ai/* ]]; then
+          echo "Routing to FastAPI backend..."
+          cd ai_backend
+          python3 -m uvicorn app:app --host 0.0.0.0 --port $PORT --app-dir .
+      else
+          echo "Routing to Django backend..."
+          # For Django, you might need to use gunicorn
+          cd /home/site/wwwroot
+          python3 -m gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 3
+      fi
       EOF
       
       chmod +x startup.sh
-      echo "Startup script created"
-    displayName: 'Create startup script'
+      
+      # Also create a simple Python router if you need both running
+      cat > app_router.py << 'EOF'
+      from fastapi import FastAPI
+      from fastapi.middleware.wsgi import WSGIMiddleware
+      from django.core.wsgi import get_wsgi_application
+      import os
+      
+      # Setup Django
+      os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+      django_app = get_wsgi_application()
+      
+      # Setup FastAPI
+      from ai_backend.app import app as fastapi_app
+      
+      # Create main app
+      app = FastAPI()
+      
+      # Mount Django app
+      app.mount("/django", WSGIMiddleware(django_app))
+      
+      # Mount FastAPI app
+      app.mount("/ai", fastapi_app)
+      
+      @app.get("/")
+      def root():
+          return {"message": "Backend API", "services": ["Django: /django", "FastAPI: /ai"]}
+      
+      if __name__ == "__main__":
+          import uvicorn
+          uvicorn.run(app, host="0.0.0.0", port=8000)
+      EOF
+      
+      echo "Startup configuration created"
+    displayName: 'Create startup configuration'
 
-  # Step 4: Test the application locally
+  # Step 4: Test both backends
   - script: |
-      echo "Testing application with local packages..."
+      echo "Testing both backends..."
+      
+      # Test FastAPI
       PYTHONPATH="./python_packages" python -c "
       try:
           from ai_backend.app import app
-          print('✅ App imported successfully with local packages')
+          print('✅ FastAPI app imported successfully')
       except Exception as e:
-          print(f'❌ Error: {e}')
-          import traceback
-          traceback.print_exc()
+          print(f'❌ FastAPI error: {e}')
       "
-    displayName: 'Test application'
+      
+      # Test Django
+      PYTHONPATH="./python_packages" python -c "
+      try:
+          import django
+          from django.conf import settings
+          if not settings.configured:
+              settings.configure()
+          print('✅ Django imported successfully')
+      except Exception as e:
+          print(f'❌ Django error: {e}')
+      "
+    displayName: 'Test both backends'
 
-  # Step 5: Archive everything including python_packages
+  # Step 5: Archive everything
   - task: ArchiveFiles@2
     displayName: 'Archive files'
     inputs:
